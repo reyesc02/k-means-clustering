@@ -7,7 +7,7 @@ cs392-final-project
 [Anna Huang]()
 
 # resources
-https://www.youtube.com/watch?v=SeswFFdH03U\
-https://github.com/pramsey/kmeans\
-https://reasonabledeviations.com/2019/10/02/k-means-in-cpp/\
+https://www.youtube.com/watch?v=SeswFFdH03U \
+https://github.com/pramsey/kmeans \
+https://reasonabledeviations.com/2019/10/02/k-means-in-cpp/ \
 https://www.geeksforgeeks.org/ml-k-means-algorithm/
