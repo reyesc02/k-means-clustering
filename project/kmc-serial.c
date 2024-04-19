@@ -1,11 +1,21 @@
 /**
  * to compile and run this file, run the following command:
- *    gcc -o kmc-serial kmc-serial.c && ./kmc-serial
+ *    gcc -lm -o kmc-serial kmc-serial.c && ./kmc-serial
  * 
 */
 
 #include <stdio.h>
 #include <math.h>
+#include <stdlib.h>
+
+// constant for the grid size
+// the grid size is the size of the 2D grid where the data points are located
+#define GRID_SIZE 100
+
+struct Point {
+    double x;
+    double y;
+};
 
 /**
  * Calculate the Euclidean distance between two points
@@ -21,14 +31,7 @@ double calculate_euclidean_distance(const double x1, const double y1, const doub
     return sqrt((x) * (x) + (y) * (y));
 }
 
-int main(int argn, char* argv[]) {
-
-    // psuedo code for naive k-means algorithm:
-    // 1. Initialize k centroids randomly
-    // 2. Assign each data point to the nearest centroid
-    // 3. Compute the new centroids by averaging the data points assigned to each centroid
-    // 4. Repeat steps 2 and 3 until the centroids do not change significantly
-
+void test_2d_point() {
     // for now we will just calculate the distance between two points
     // a point is represented by a pair of coordinates (x, y)
     // the distance between two points (x1, y1) and (x2, y2) is given by:
@@ -46,6 +49,44 @@ int main(int argn, char* argv[]) {
     double distance = calculate_euclidean_distance(x1, y1, x2, y2);
 
     printf("The distance between (%f, %f) and (%f, %f) is %f\n", x1, y1, x2, y2, distance);
+}
+
+int main(int argn, char* argv[]) {
+
+    // pseudo code for kmc algorithm
+    // 1. initialize the data points
+    // 2. choose the number of k clusters
+    // 3. select k random points as the initial centroids
+    // 4. assign each data point to the nearest centroid
+    // 5. recalculate the centroids of the clusters
+    // 6. repeat steps 4 and 5 until until one of the following conditions is met:
+    //    - the centroids do not change
+    //    - the maximum number of iterations is reached
+    //    - the points remain in the same cluster
+
+    // 1. initialize the data points
+    // the array of struct Point will store the data points
+    size_t num_data_points = 25;
+    struct Point data_points[num_data_points];
+
+    // randomly initialize the data points between -GRID_SIZE and GRID_SIZE
+    for (size_t i = 0; i < num_data_points; i++) {
+        data_points[i].x = (double)rand() / RAND_MAX * 2 * GRID_SIZE - GRID_SIZE;
+        data_points[i].y = (double)rand() / RAND_MAX * 2 * GRID_SIZE - GRID_SIZE;
+        printf("Data point %zu: (%f, %f)\n", i, data_points[i].x, data_points[i].y);
+    }
+
+    printf("\n");
+
+    // 2. choose the number of k clusters
+    size_t k = 3;
+
+    // 3. select k random points as the initial centroids from the data points
+    struct Point centroids[k];
+    for (size_t i = 0; i < k; i++) {
+        centroids[i] = data_points[rand() % num_data_points];
+        printf("Centroid %zu: (%f, %f)\n", i, centroids[i].x, centroids[i].y);
+    }
 
     return 0;
 }
