@@ -70,10 +70,12 @@ int main(int argn, char* argv[]) {
     struct Point data_points[num_data_points];
 
     // randomly initialize the data points between -GRID_SIZE and GRID_SIZE
+    // seed the random number generator
+    srand(0);
     for (size_t i = 0; i < num_data_points; i++) {
         data_points[i].x = (double)rand() / RAND_MAX * 2 * GRID_SIZE - GRID_SIZE;
         data_points[i].y = (double)rand() / RAND_MAX * 2 * GRID_SIZE - GRID_SIZE;
-        printf("Data point %zu: (%f, %f)\n", i, data_points[i].x, data_points[i].y);
+        //printf("Data point %zu: (%f, %f)\n", i, data_points[i].x, data_points[i].y);
     }
 
     printf("\n");
@@ -85,7 +87,34 @@ int main(int argn, char* argv[]) {
     struct Point centroids[k];
     for (size_t i = 0; i < k; i++) {
         centroids[i] = data_points[rand() % num_data_points];
-        printf("Centroid %zu: (%f, %f)\n", i, centroids[i].x, centroids[i].y);
+        //printf("Centroid %zu: (%f, %f)\n", i, centroids[i].x, centroids[i].y);
+    }
+
+    printf("\n");
+
+    // for now just do 1 iteration of the kmc algorithm
+
+    // loop through all data points and find the nearest centroid
+    for (size_t i = 0; i < num_data_points; i++) {
+        // calculate the distance between the data point and each centroid
+        double nearest_distance;
+        size_t nearest_centroid;
+        size_t first_run = 1;
+        for (size_t j = 0; j < k; j++) {
+            double distance = calculate_euclidean_distance(data_points[i].x, data_points[i].y, centroids[j].x, centroids[j].y);
+            // case for the first run (probably not the best way to do this)
+            if (first_run) {
+                nearest_distance = distance;
+                nearest_centroid = j;
+                first_run = 0;
+            }
+            //printf("Distance between data point %zu and centroid %zu is %f\n", i, j, distance);
+            if (distance < nearest_distance) {
+                nearest_distance = distance;
+                nearest_centroid = j;
+            }
+        }
+        printf("Point: %zu \tcentroid: %zu \tdistance: %f\n\n", i, nearest_centroid, nearest_distance);
     }
 
     return 0;
