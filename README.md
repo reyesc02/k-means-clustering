@@ -3,8 +3,8 @@ cs392-final-project
 
 # contributors
 [Carl Reyes](https://github.com/reyesc02)\
-[Brian Demyan]()\
-[Anna Huang]()
+[Brian Demyan](https://github.com/elon-shmusk)\
+[Anna Huang](https://github.com/anna-huang17)
 
 # resources
 https://www.youtube.com/watch?v=SeswFFdH03U \
