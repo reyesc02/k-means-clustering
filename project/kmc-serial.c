@@ -4,17 +4,17 @@
  * 
 */
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include <stdlib.h>
 
 // constant for the grid size
 // the grid size is the size of the 2D grid where the data points are located
-#define GRID_SIZE 100
+#define GRID_SIZE 128
 
 struct Point {
-    double x;
-    double y;
+    double x, y;
+    size_t cluster_id;
 };
 
 /**
@@ -31,91 +31,103 @@ double calculate_euclidean_distance(const double x1, const double y1, const doub
     return sqrt((x) * (x) + (y) * (y));
 }
 
-void test_2d_point() {
-    // for now we will just calculate the distance between two points
-    // a point is represented by a pair of coordinates (x, y)
-    // the distance between two points (x1, y1) and (x2, y2) is given by:
-    // sqrt((x1 - x2)^2 + (y1 - y2)^2)
-
-    // let's calculate the distance between two points
-    double x1, y1;
-    x1 = 1.0;
-    y1 = 2.0;
-
-    double x2, y2;
-    x2 = 3.0;
-    y2 = 4.0;
-
-    double distance = calculate_euclidean_distance(x1, y1, x2, y2);
-
-    printf("The distance between (%f, %f) and (%f, %f) is %f\n", x1, y1, x2, y2, distance);
-}
-
 int main(int argn, char* argv[]) {
-
-    // pseudo code for kmc algorithm
-    // 1. initialize the data points
-    // 2. choose the number of k clusters
-    // 3. select k random points as the initial centroids
-    // 4. assign each data point to the nearest centroid
-    // 5. recalculate the centroids of the clusters
-    // 6. repeat steps 4 and 5 until until one of the following conditions is met:
-    //    - the centroids do not change
-    //    - the maximum number of iterations is reached
-    //    - the points remain in the same cluster
-
-    // 1. initialize the data points
-    // the array of struct Point will store the data points
-    size_t num_data_points = 25;
+    
+    // 1. declare num_data_points and data_points
+    size_t num_data_points = 16;
     struct Point data_points[num_data_points];
 
-    // randomly initialize the data points between -GRID_SIZE and GRID_SIZE
-    // seed the random number generator
+    // randomly initialize data_points between -GRID_SIZE and GRID_SIZE
     srand(0);
     for (size_t i = 0; i < num_data_points; i++) {
         data_points[i].x = (double)rand() / RAND_MAX * 2 * GRID_SIZE - GRID_SIZE;
         data_points[i].y = (double)rand() / RAND_MAX * 2 * GRID_SIZE - GRID_SIZE;
-        //printf("Data point %zu: (%f, %f)\n", i, data_points[i].x, data_points[i].y);
+        data_points[i].cluster_id = -1;
     }
 
-    printf("\n");
+    // 2. declare num_k_clusters and k_clusters
+    size_t num_k_clusters = 4;
+    struct Point k_clusters[num_k_clusters];
 
-    // 2. choose the number of k clusters
-    size_t k = 3;
-
-    // 3. select k random points as the initial centroids from the data points
-    struct Point centroids[k];
-    for (size_t i = 0; i < k; i++) {
-        centroids[i] = data_points[rand() % num_data_points];
-        //printf("Centroid %zu: (%f, %f)\n", i, centroids[i].x, centroids[i].y);
+    // 3. randomly initialize k_clusters from data_points
+    for (size_t i = 0; i < num_k_clusters; i++) {
+        k_clusters[i] = data_points[rand() % num_data_points];
     }
 
-    printf("\n");
+    // declare conditions for convergence
+    size_t max_iterations = 256;
+    size_t is_k_clusters_changed;
+    size_t is_k_cluster_points_changed;
 
-    // for now just do 1 iteration of the kmc algorithm
+    // 6. repeat steps 4 and 5 until convergence
+    for (size_t iteration = 0; iteration < max_iterations; iteration++) {
+        is_k_clusters_changed = 0;
+        is_k_cluster_points_changed = 0;
 
-    // loop through all data points and find the nearest centroid
-    for (size_t i = 0; i < num_data_points; i++) {
-        // calculate the distance between the data point and each centroid
-        double nearest_distance;
-        size_t nearest_centroid;
-        size_t first_run = 1;
-        for (size_t j = 0; j < k; j++) {
-            double distance = calculate_euclidean_distance(data_points[i].x, data_points[i].y, centroids[j].x, centroids[j].y);
-            // case for the first run (probably not the best way to do this)
-            if (first_run) {
-                nearest_distance = distance;
-                nearest_centroid = j;
-                first_run = 0;
+        // 4. assign each data point to the nearest centroid
+        for (size_t i = 0; i < num_data_points; i++) {
+            double min_distance;
+            if (data_points[i].cluster_id == -1) {
+                min_distance = INFINITY;
+            } else {
+                min_distance = calculate_euclidean_distance(data_points[i].x, data_points[i].y, k_clusters[data_points[i].cluster_id].x, k_clusters[data_points[i].cluster_id].y);
             }
-            //printf("Distance between data point %zu and centroid %zu is %f\n", i, j, distance);
-            if (distance < nearest_distance) {
-                nearest_distance = distance;
-                nearest_centroid = j;
+            for (size_t j = 0; j < num_k_clusters; j++) {
+                double distance = sqrt(pow(data_points[i].x - k_clusters[j].x, 2) + pow(data_points[i].y - k_clusters[j].y, 2));
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    data_points[i].cluster_id = j;
+                    is_k_clusters_changed = 1;
+                }
             }
         }
-        printf("Point: %zu \tcentroid: %zu \tdistance: %f\n\n", i, nearest_centroid, nearest_distance);
+
+        // check for convergence
+        if (!is_k_clusters_changed) {
+            //printf("is_k_clusters_changed: %d\n", is_k_clusters_changed);
+            //printf("Converged at iteration %d\n", iteration);
+            break;
+        }
+
+        // 5. recalculate the centroids of the clusters
+        for (int i = 0; i < num_k_clusters; i++) {
+            double sum_x = 0;
+            double sum_y = 0;
+            size_t num_points = 0;
+            for (int j = 0; j < num_data_points; j++) {
+                if (data_points[j].cluster_id == i) {
+                    sum_x += data_points[j].x;
+                    sum_y += data_points[j].y;
+                    num_points++;
+                }
+            }
+            if (num_points > 0) {
+                double new_x = sum_x / num_points;
+                double new_y = sum_y / num_points;
+                if (new_x != k_clusters[i].x || new_y != k_clusters[i].y) {
+                    k_clusters[i].x = new_x;
+                    k_clusters[i].y = new_y;
+                    is_k_cluster_points_changed = 1;
+                }
+            }
+        }
+
+        // check for convergence
+        if (!is_k_cluster_points_changed) {
+            //printf("is_k_cluster_points_changed: %d\n", is_k_cluster_points_changed);
+            //printf("Converged at iteration %d\n", iteration);
+            break;
+        }
     }
 
+    // print the data_points and their x, y, and cluster_id to output.txt separated by a comma
+    FILE* output_file = fopen("output.txt", "w");
+    for (size_t i = 0; i < num_data_points; i++) {
+        fprintf(output_file, "%f,%f,%zu\n", data_points[i].x, data_points[i].y, data_points[i].cluster_id);
+    }
+    fclose(output_file);
+
+    
+    
     return 0;
 }
