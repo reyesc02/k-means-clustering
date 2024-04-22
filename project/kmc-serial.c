@@ -7,11 +7,20 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
 
-// constant for the grid size
-// the grid size is the size of the 2D grid where the data points are located
+// grid size constant
 #define GRID_SIZE 128
 
+// tolerance constant
+#define TOLERANCE 1e-4
+
+/**
+ * Point struct to represent a point in 2D space
+ * x: x-coordinate of the point
+ * y: y-coordinate of the point
+ * cluster_id: the id of the cluster that the point belongs to
+*/
 struct Point {
     double x, y;
     size_t cluster_id;
@@ -73,7 +82,7 @@ int main(int argn, char* argv[]) {
                 min_distance = calculate_euclidean_distance(data_points[i].x, data_points[i].y, k_clusters[data_points[i].cluster_id].x, k_clusters[data_points[i].cluster_id].y);
             }
             for (size_t j = 0; j < num_k_clusters; j++) {
-                double distance = sqrt(pow(data_points[i].x - k_clusters[j].x, 2) + pow(data_points[i].y - k_clusters[j].y, 2));
+                double distance = calculate_euclidean_distance(data_points[i].x, data_points[i].y, k_clusters[j].x, k_clusters[j].y);
                 if (distance < min_distance) {
                     min_distance = distance;
                     data_points[i].cluster_id = j;
@@ -104,7 +113,7 @@ int main(int argn, char* argv[]) {
             if (num_points > 0) {
                 double new_x = sum_x / num_points;
                 double new_y = sum_y / num_points;
-                if (new_x != k_clusters[i].x || new_y != k_clusters[i].y) {
+                if (fabs(new_x - k_clusters[i].x) > TOLERANCE || fabs(new_y - k_clusters[i].y) > TOLERANCE) {
                     k_clusters[i].x = new_x;
                     k_clusters[i].y = new_y;
                     is_k_cluster_points_changed = 1;
@@ -121,7 +130,11 @@ int main(int argn, char* argv[]) {
     }
 
     // print the data_points and their x, y, and cluster_id to output.txt separated by a comma
-    FILE* output_file = fopen("output.txt", "w");
+    // filename is output-date-time.txt in the output folder
+    char filename[256];
+    sprintf(filename, "output/output-%ld.txt", time(NULL));
+    FILE* output_file = fopen(filename, "w");
+    //FILE* output_file = fopen("output.txt", "w");
     for (size_t i = 0; i < num_data_points; i++) {
         fprintf(output_file, "%f,%f,%zu\n", data_points[i].x, data_points[i].y, data_points[i].cluster_id);
     }
