@@ -57,8 +57,9 @@ int main(int argn, char* argv[]) {
 
     // 3. randomly initialize k_clusters from data_points
     for (size_t i = 0; i < num_k_clusters; i++) {
+        size_t index = rand() % num_data_points;
         for (size_t j = 0; j < n_dimensions; j++) {
-            k_clusters[i][j] = data_points[rand() % num_data_points][j];
+            k_clusters[i][j] = data_points[index][j];
         }
     }
 
