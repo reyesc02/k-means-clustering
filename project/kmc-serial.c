@@ -14,16 +14,6 @@
 // tolerance constant
 #define TOLERANCE 1e-4
 
-/**
- * Calculate Euclidean Distance function
- * This function calculates the Euclidean distance between two points.
- * This function does not square root the sum of the squares of the differences
- * because the square root is not necessary for comparing distances.
- * @param data_point: the pointer to the data_points row
- * @param k_cluster: the pointer to the k_clusters row
- * @param n_dimensions: the number of dimensions
- * @return the Euclidean distance between the two points
-*/
 double calculate_euclidean_distance(double* data_point, double* k_cluster, size_t n_dimensions) {
     double sum = 0;
     for (size_t i = 0; i < n_dimensions; i++) {
@@ -32,13 +22,19 @@ double calculate_euclidean_distance(double* data_point, double* k_cluster, size_
     return sum;
 }
 
-int main(int argn, char* argv[]) {
+int main(int argc, char* argv[]) {
+    if (argc != 5) {
+        printf("Usage: %s <grid_size> <n_dimensions> <num_data_points> <num_k_clusters>\n", argv[0]);
+        return 1;
+    }
 
-    // declare n_dimensions
-    size_t n_dimensions = 2;
-    
-    // 1. declare num_data_points and data_points
-    size_t num_data_points = 16;
+    // parse the user input
+    int grid_size = atoi(argv[1]);
+    int n_dimensions = atoi(argv[2]);
+    int num_data_points = atoi(argv[3]);
+    int num_k_clusters = atoi(argv[4]);
+
+    // declare data_points and cluster_id arrays
     double data_points[num_data_points][n_dimensions];
     int cluster_id[num_data_points];
 
@@ -46,13 +42,12 @@ int main(int argn, char* argv[]) {
     srand(0);
     for (size_t i = 0; i < num_data_points; i++) {
         for (size_t j = 0; j < n_dimensions; j++) {
-            data_points[i][j] = (double)rand() / RAND_MAX * 2 * GRID_SIZE - GRID_SIZE;
+            data_points[i][j] = (double)rand() / RAND_MAX * 2 * grid_size - grid_size;
         }
         cluster_id[i] = -1;
     }
 
     // 2. declare num_k_clusters and k_clusters
-    size_t num_k_clusters = 4;
     double k_clusters[num_k_clusters][n_dimensions];
 
     // 3. randomly initialize k_clusters from data_points
@@ -75,20 +70,20 @@ int main(int argn, char* argv[]) {
         
         // 4. assign each data point to the nearest centroid
         for (size_t i = 0; i < num_data_points; i++) {
-                double min_distance;
-                if (cluster_id[i] == -1) {
-                    min_distance = INFINITY;
-                } else {
-                    min_distance = calculate_euclidean_distance(data_points[i], k_clusters[cluster_id[i]], n_dimensions);
+            double min_distance;
+            if (cluster_id[i] == -1) {
+                min_distance = INFINITY;
+            } else {
+                min_distance = calculate_euclidean_distance(data_points[i], k_clusters[cluster_id[i]], n_dimensions);
+            }
+            for (size_t k = 0; k < num_k_clusters; k++) {
+                double distance = calculate_euclidean_distance(data_points[i], k_clusters[k], n_dimensions);
+                if (distance < min_distance) {
+                    min_distance = distance;
+                    cluster_id[i] = k;
+                    is_k_clusters_changed = 1;
                 }
-                for (size_t k = 0; k < num_k_clusters; k++) {
-                    double distance = calculate_euclidean_distance(data_points[i], k_clusters[k], n_dimensions);
-                    if (distance < min_distance) {
-                        min_distance = distance;
-                        cluster_id[i] = k;
-                        is_k_clusters_changed = 1;
-                    }
-                }
+            }
         }
 
         // check for convergence
@@ -100,16 +95,18 @@ int main(int argn, char* argv[]) {
 
         // 5. recalculate the centroids of the clusters
         for (int i = 0; i < num_k_clusters; i++) {
-            for (int j = 0; j < n_dimensions; j++) {
-                double sums[n_dimensions];
-                size_t num_points = 0;
-                for (int k = 0; k < num_data_points; k++) {
-                    if (cluster_id[k] == i) {
+            double sums[n_dimensions];
+            size_t num_points = 0;
+            for (int k = 0; k < num_data_points; k++) {
+                if (cluster_id[k] == i) {
+                    for (int j = 0; j < n_dimensions; j++) {
                         sums[j] += data_points[k][j];
-                        num_points++;
                     }
+                    num_points++;
                 }
-                if (num_points > 0) {
+            }
+            if (num_points > 0) {
+                for (int j = 0; j < n_dimensions; j++) {
                     double new_value = sums[j] / num_points;
                     if (fabs(new_value - k_clusters[i][j]) > TOLERANCE) {
                         k_clusters[i][j] = new_value;
