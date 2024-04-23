@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
 
         // 5. recalculate the centroids of the clusters
         for (int i = 0; i < num_k_clusters; i++) {
-            double* sums = (double*)calloc(n_dimensions, sizeof(double)); // initialize sums array with zeros
+            double sums[n_dimensions];
             size_t num_points = 0;
             for (int k = 0; k < num_data_points; k++) {
                 if (cluster_id[k] == i) {
