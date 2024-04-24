@@ -4,6 +4,8 @@
  *    gcc-13 $(mpicc -showme:compile) $(mpicc -showme:link) -Wall -O3 -march=native -fopenmp kmc-openmp.c -o kmc-openmp -lm
  *     mpirun -np 4 ./kmc-openmp 128 2 1000 4
  *
+ * on linux:
+ *    gcc -o kmc-openmp kmc-openmp.c -fopenmp -lm && ./kmc-openmp 128 2 1000 4
  */
 #include <stdlib.h>
 #include <stdio.h>
@@ -24,23 +26,40 @@ double calculate_euclidean_distance(double *data_point, double *k_cluster, size_
     return sum;
 }
 
-int main(int argc, char *argv[])
+int main(int argn, char *argv[])
 {
-    if (argc != 5)
-    {
-        printf("Usage: %s <grid_size> <n_dimensions> <num_data_points> <num_k_clusters>\n", argv[0]);
-        return 1;
+    // declare variables
+    size_t num_data_points = 10;
+    size_t n_dimensions = 2;
+    size_t num_k_clusters = 4;
+    double grid_size = 32;
+
+    // check for command line arguments
+    switch (argn) {
+        case 1:
+            break;
+        case 5:
+            num_data_points = atoi(argv[1]);
+            n_dimensions = atoi(argv[2]);
+            num_k_clusters = atoi(argv[3]);
+            grid_size = atof(argv[4]);
+            break;
+        default:
+            printf("Usage: %s <num_data_points> <n_dimensions> <num_k_clusters> <grid_size>\n", argv[0]);
+            return 1;
     }
 
-    // parse the user input
-    int grid_size = atoi(argv[1]);
-    int n_dimensions = atoi(argv[2]);
-    int num_data_points = atoi(argv[3]);
-    int num_k_clusters = atoi(argv[4]);
+    // 1. allocate memory for data_points, cluster_id, and k_clusters
+    double** data_points = (double**)malloc(num_data_points * sizeof(double*));
+    for (size_t i = 0; i < num_data_points; i++) {
+        data_points[i] = (double*)malloc(n_dimensions * sizeof(double));
+    }
+    int* cluster_id = (int*)malloc(num_data_points * sizeof(int));
 
-    // declare data_points and cluster_id arrays
-    double data_points[num_data_points][n_dimensions];
-    int cluster_id[num_data_points];
+    double** k_clusters = (double**)malloc(num_k_clusters * sizeof(double*));
+    for (size_t i = 0; i < num_k_clusters; i++) {
+        k_clusters[i] = (double*)malloc(n_dimensions * sizeof(double));
+    }
 
     // randomly initialize data_points between -GRID_SIZE and GRID_SIZE
     srand(0);
@@ -53,21 +72,18 @@ int main(int argc, char *argv[])
         cluster_id[i] = -1;
     }
 
-    // 2. declare num_k_clusters and k_clusters
-    double k_clusters[num_k_clusters][n_dimensions];
-
     // 3. randomly initialize k_clusters from data_points
     for (size_t i = 0; i < num_k_clusters; i++)
     {
-        size_t index = rand() % num_data_points;
+        size_t rand_index = rand() % num_data_points;
         for (size_t j = 0; j < n_dimensions; j++)
         {
-            k_clusters[i][j] = data_points[index][j];
+            k_clusters[i][j] = data_points[rand_index][j];
         }
     }
 
     // declare conditions for convergence
-    size_t max_iterations = 256;
+    size_t max_iterations = 300;
     size_t is_k_clusters_changed;
     size_t is_k_cluster_points_changed;
 
@@ -77,9 +93,9 @@ int main(int argc, char *argv[])
         is_k_clusters_changed = 0;
         is_k_cluster_points_changed = 0;
 
-    // 4. assign each data point to the nearest centroid
-   #pragma omp parallel for shared(data_points, k_clusters, cluster_id, is_k_clusters_changed, num_data_points, n_dimensions, num_k_clusters) default(none)
-    for (size_t i = 0; i < num_data_points; i++)
+        // 4. assign each data point to the nearest centroid
+        #pragma omp parallel for shared(data_points, k_clusters, cluster_id, is_k_clusters_changed, num_data_points, n_dimensions, num_k_clusters) default(none)
+        for (size_t i = 0; i < num_data_points; i++)
         {
             double min_distance;
             size_t nearest_cluster = cluster_id[i]; // Initialize to current cluster
@@ -116,24 +132,21 @@ int main(int argc, char *argv[])
         #pragma omp parallel for shared(data_points, k_clusters, cluster_id, is_k_cluster_points_changed, num_k_clusters, num_data_points, n_dimensions) default(none)
         for (int i = 0; i < num_k_clusters; i++)
         {
-            double sums[n_dimensions]; 
-            size_t num_points = 0;
-            for (int k = 0; k < num_data_points; k++)
+            for (int j = 0; j < n_dimensions; j++)
             {
-                if (cluster_id[k] == i)
+                double sums = 0; 
+                size_t num_points = 0;
+                for (int k = 0; k < num_data_points; k++)
                 {
-                    for (int j = 0; j < n_dimensions; j++)
+                    if (cluster_id[k] == i)
                     {
-                        sums[j] += data_points[k][j];
+                        sums += data_points[k][j];
+                        num_points++;
                     }
-                    num_points++;
                 }
-            }
-            if (num_points > 0)
-            {
-                for (int j = 0; j < n_dimensions; j++)
+                if (num_points > 0)
                 {
-                    double new_value = sums[j] / num_points;
+                    double new_value = sums / num_points;
                     if (fabs(new_value - k_clusters[i][j]) > TOLERANCE)
                     {
                         k_clusters[i][j] = new_value;
