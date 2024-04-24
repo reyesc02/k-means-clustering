@@ -1,6 +1,6 @@
 /**
  * to compile and run this file, run the following command:
- *    gcc -lm -o kmc-serial kmc-serial.c && ./kmc-serial
+ *    gcc -lm -o kmc-serial kmc-serial.c matrix.c && ./kmc-serial data/housing.csv 8
  * 
 */
 
@@ -83,6 +83,9 @@ int main(int argn, char* argv[]) {
     size_t is_k_clusters_changed;
     size_t is_k_cluster_points_changed;
 
+    // set total time variable
+    double total_time = 0;
+
     // 6. repeat steps 4 and 5 until convergence
     for (size_t iteration = 0; iteration < max_iterations; iteration++) {
         is_k_clusters_changed = 0;
@@ -91,11 +94,13 @@ int main(int argn, char* argv[]) {
         // 4. assign each data point to the nearest centroid
         for (size_t i = 0; i < num_data_points; i++) {
             double min_distance = INFINITY;
-            if (cluster_id[i] != -1) {
-                min_distance = calculate_euclidean_distance(data_points->data + i * n_dimensions, k_clusters->data + cluster_id[i] * n_dimensions, n_dimensions);
+            int current_cluster_id = cluster_id[i];
+            int i_n_dimensions = i * n_dimensions;
+            if (current_cluster_id != -1) {
+                min_distance = calculate_euclidean_distance(data_points->data + i_n_dimensions, k_clusters->data + current_cluster_id * n_dimensions, n_dimensions);
             }
             for (size_t k = 0; k < num_k_clusters; k++) {
-                double distance = calculate_euclidean_distance(data_points->data + i * n_dimensions, k_clusters->data + k * n_dimensions, n_dimensions);
+                double distance = calculate_euclidean_distance(data_points->data + i_n_dimensions, k_clusters->data + k * n_dimensions, n_dimensions);
                 if (distance < min_distance) {
                     min_distance = distance;
                     cluster_id[i] = k;
@@ -113,23 +118,30 @@ int main(int argn, char* argv[]) {
 
         // 5. recalculate the centroids of the clusters
         for (int i = 0; i < num_k_clusters; i++) {
+            // Loop fissioned for better performance
+            double* sum = (double*)malloc(n_dimensions * sizeof(double));
+            int count = 0;
             for (int j = 0; j < n_dimensions; j++) {
-                double sums = 0;
-                size_t num_points = 0;
-                for (int k = 0; k < num_data_points; k++) {
-                    if (cluster_id[k] == i) {
-                        sums += data_points->data[k * n_dimensions + j];
-                        num_points++;
+                sum[j] = 0;
+            }
+            for (int k = 0; k < num_data_points; k++) {
+                if (cluster_id[k] == i) {
+                    for (int j = 0; j < n_dimensions; j++) {
+                        sum[j] += data_points->data[k * n_dimensions + j];
                     }
+                    count++;
                 }
-                if (num_points > 0) {
-                    double new_value = sums / num_points;
-                    if (fabs(k_clusters->data[i * n_dimensions + j] - new_value) > TOLERANCE) {
-                        k_clusters->data[i * n_dimensions + j] = new_value;
+            }
+            for (int j = 0; j < n_dimensions; j++) {
+                if (count > 0) {
+                    double new_centroid = sum[j] / count;
+                    if (fabs(k_clusters->data[i * n_dimensions + j] - new_centroid) > TOLERANCE) {
+                        k_clusters->data[i * n_dimensions + j] = new_centroid;
                         is_k_cluster_points_changed = 1;
                     }
                 }
             }
+            free(sum);
         }
 
         // check for convergence
