@@ -30,6 +30,7 @@ double calculate_euclidean_distance(double* data_point, double* k_cluster, size_
     }
     return sum;
 }
+
 int main(int argn, char* argv[]) {
     
     // declare variables
