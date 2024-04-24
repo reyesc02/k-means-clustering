@@ -31,12 +31,27 @@ double calculate_euclidean_distance(double* data_point, double* k_cluster, size_
     return sum;
 }
 int main(int argn, char* argv[]) {
-
+    
     // declare variables
     size_t num_data_points = 10;
     size_t n_dimensions = 2;
     size_t num_k_clusters = 4;
     double grid_size = 32;
+
+    // check for command line arguments
+    switch (argn) {
+        case 1:
+            break;
+        case 5:
+            num_data_points = atoi(argv[1]);
+            n_dimensions = atoi(argv[2]);
+            num_k_clusters = atoi(argv[3]);
+            grid_size = atof(argv[4]);
+            break;
+        default:
+            printf("Usage: %s <num_data_points> <n_dimensions> <num_k_clusters> <grid_size>\n", argv[0]);
+            return 1;
+    }
 
     // 1. allocate memory for data_points, cluster_id, and k_clusters
     double** data_points = (double**)malloc(num_data_points * sizeof(double*));
@@ -51,7 +66,7 @@ int main(int argn, char* argv[]) {
     }
 
     // randomly initialize data_points between -GRID_SIZE and GRID_SIZE
-    srand(69);
+    srand(0);
     for (size_t i = 0; i < num_data_points; i++) {
         for (size_t j = 0; j < n_dimensions; j++) {
             data_points[i][j] = (double)rand() / RAND_MAX * 2 * grid_size - grid_size;
@@ -64,7 +79,6 @@ int main(int argn, char* argv[]) {
         size_t rand_index = rand() % num_data_points;
         for (size_t j = 0; j < n_dimensions; j++) {
             k_clusters[i][j] = data_points[rand_index][j];
-            printf("k_clusters[%ld][%ld]: %lf\n", i, j, k_clusters[i][j]);
         }
     }
 
