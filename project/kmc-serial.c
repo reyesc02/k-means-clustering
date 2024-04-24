@@ -4,11 +4,14 @@
  * 
 */
 
+#include <math.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
-#include <time.h>
 #include <string.h>
+#include <time.h>
+
+#include "matrix.h"
 
 // tolerance constant
 #define TOLERANCE 1e-4
@@ -30,55 +33,48 @@ double calculate_euclidean_distance(double* data_point, double* k_cluster, size_
     }
     return sum;
 }
+
 int main(int argn, char* argv[]) {
     
     // declare variables
-    size_t num_data_points = 10;
-    size_t n_dimensions = 2;
-    size_t num_k_clusters = 4;
+    unsigned long long num_data_points = 10;
+    unsigned long long n_dimensions = 2;
+    unsigned long long num_k_clusters = 4;
     double grid_size = 32;
-
-    // check for command line arguments
-    switch (argn) {
-        case 1:
-            break;
-        case 5:
-            num_data_points = atoi(argv[1]);
-            n_dimensions = atoi(argv[2]);
-            num_k_clusters = atoi(argv[3]);
-            grid_size = atof(argv[4]);
-            break;
-        default:
-            printf("Usage: %s <num_data_points> <n_dimensions> <num_k_clusters> <grid_size>\n", argv[0]);
-            return 1;
-    }
-
-    // 1. allocate memory for data_points, cluster_id, and k_clusters
-    double** data_points = (double**)malloc(num_data_points * sizeof(double*));
-    for (size_t i = 0; i < num_data_points; i++) {
-        data_points[i] = (double*)malloc(n_dimensions * sizeof(double));
-    }
+    
+    if (argn != 3) { printf("Error: Please provide the input file\n"); return 1; }
+    Matrix* data_points = matrix_from_csv_path(argv[1]);
+    if (data_points == NULL) { perror("error reading input"); return 1; }
+    n_dimensions = data_points->cols;
+    num_data_points = data_points->rows;
+    num_k_clusters = atoi(argv[2]);
+    Matrix* k_clusters = matrix_create_raw(num_k_clusters, n_dimensions);
     int* cluster_id = (int*)malloc(num_data_points * sizeof(int));
 
-    double** k_clusters = (double**)malloc(num_k_clusters * sizeof(double*));
-    for (size_t i = 0; i < num_k_clusters; i++) {
-        k_clusters[i] = (double*)malloc(n_dimensions * sizeof(double));
-    }
+    // printf("num_data_points: %llu\n", num_data_points);
+    // printf("n_dimensions: %llu\n", n_dimensions);
+    // printf("num_k_clusters: %llu\n", num_k_clusters);
 
     // randomly initialize data_points between -GRID_SIZE and GRID_SIZE
-    srand(0);
+    // srand(0);
+    // for (size_t i = 0; i < num_data_points; i++) {
+    //     for (size_t j = 0; j < n_dimensions; j++) {
+    //         data_points[i][j] = (double)rand() / RAND_MAX * 2 * grid_size - grid_size;
+    //     }
+    //     cluster_id[i] = -1;
+    // }
+
+    // initialize cluster_id
     for (size_t i = 0; i < num_data_points; i++) {
-        for (size_t j = 0; j < n_dimensions; j++) {
-            data_points[i][j] = (double)rand() / RAND_MAX * 2 * grid_size - grid_size;
-        }
         cluster_id[i] = -1;
     }
     
     // 3. randomly initialize k_clusters from data_points
+    srand(0);
     for (size_t i = 0; i < num_k_clusters; i++) {
         size_t rand_index = rand() % num_data_points;
         for (size_t j = 0; j < n_dimensions; j++) {
-            k_clusters[i][j] = data_points[rand_index][j];
+            k_clusters->data[i * n_dimensions + j] = data_points->data[rand_index * n_dimensions + j];
         }
     }
 
@@ -96,10 +92,10 @@ int main(int argn, char* argv[]) {
         for (size_t i = 0; i < num_data_points; i++) {
             double min_distance = INFINITY;
             if (cluster_id[i] != -1) {
-                min_distance = calculate_euclidean_distance(data_points[i], k_clusters[cluster_id[i]], n_dimensions);
+                min_distance = calculate_euclidean_distance(data_points->data + i * n_dimensions, k_clusters->data + cluster_id[i] * n_dimensions, n_dimensions);
             }
             for (size_t k = 0; k < num_k_clusters; k++) {
-                double distance = calculate_euclidean_distance(data_points[i], k_clusters[k], n_dimensions);
+                double distance = calculate_euclidean_distance(data_points->data + i * n_dimensions, k_clusters->data + k * n_dimensions, n_dimensions);
                 if (distance < min_distance) {
                     min_distance = distance;
                     cluster_id[i] = k;
@@ -122,14 +118,14 @@ int main(int argn, char* argv[]) {
                 size_t num_points = 0;
                 for (int k = 0; k < num_data_points; k++) {
                     if (cluster_id[k] == i) {
-                        sums += data_points[k][j];
+                        sums += data_points->data[k * n_dimensions + j];
                         num_points++;
                     }
                 }
                 if (num_points > 0) {
                     double new_value = sums / num_points;
-                    if (fabs(new_value - k_clusters[i][j]) > TOLERANCE) {
-                        k_clusters[i][j] = new_value;
+                    if (fabs(k_clusters->data[i * n_dimensions + j] - new_value) > TOLERANCE) {
+                        k_clusters->data[i * n_dimensions + j] = new_value;
                         is_k_cluster_points_changed = 1;
                     }
                 }
@@ -146,14 +142,19 @@ int main(int argn, char* argv[]) {
 
     // print the data_points and their x, y, and cluster_id to output.txt separated by a comma
     // filename is output-date-time.txt in the output folder
+    size_t start_col = 6;
+    size_t end_col = 7;
     char filename[256];
     sprintf(filename, "output/output-%ld.txt", time(NULL));
     FILE* output_file = fopen(filename, "w");
+    // print the header
+    // latitude, longitude, cluster_id
+    fprintf(output_file, "latitude,longitude,cluster_id\n");
     //FILE* output_file = fopen("output.txt", "w");
     for (size_t i = 0; i < num_data_points; i++) {
-        for (size_t j = 0; j < n_dimensions; j++) {
-            fprintf(output_file, "%lf", data_points[i][j]);
-            if (j < n_dimensions - 1) {
+        for (size_t j = start_col; j <= end_col; j++) {
+            fprintf(output_file, "%lf", data_points->data[i * n_dimensions + j]);
+            if (j < end_col) {
                 fprintf(output_file, ",");
             }
         }
@@ -162,15 +163,9 @@ int main(int argn, char* argv[]) {
     fclose(output_file);
 
     // free memory
-    for (size_t i = 0; i < num_data_points; i++) {
-        free(data_points[i]);
-    }
-    free(data_points);
+    matrix_free(data_points);
     free(cluster_id);
-    for (size_t i = 0; i < num_k_clusters; i++) {
-        free(k_clusters[i]);
-    }
-    free(k_clusters);
+    matrix_free(k_clusters);
 
     return 0;
 }
