@@ -175,8 +175,7 @@ int main(int argn, char *argv[])
         }
     }
 
-    // print the data_points and their x, y, and cluster_id to output.txt separated by a comma
-    // filename is output-date-time.txt in the output folder
+    // write output info to output-info-[time].txt    
     char filename[256];
     sprintf(filename, "output/output-info-%ld.txt", time(NULL));
     FILE *output_file = fopen(filename, "w");
@@ -203,7 +202,6 @@ int main(int argn, char *argv[])
     fprintf(output_file, "\n");
 
     // Print the reason for convergence
-    // Replace 'reason' with the actual reason
     char* reason_string;
     switch(reason) {
         case 0:
@@ -223,6 +221,17 @@ int main(int argn, char *argv[])
     fprintf(output_file, "converged after %zu iterations\nconverged due to %s\n", iterations_reached, reason_string);
 
     // Close the output file
+    fclose(output_file);
+
+    // Print data_points and cluster_id
+    sprintf(filename, "output/output-data-points-%ld.csv", time(NULL));
+    output_file = fopen(filename, "w");
+    for (size_t i = 0; i < num_data_points; i++) {
+        for (size_t j = 0; j < n_dimensions; j++) {
+            fprintf(output_file, "%f,", data_points->data[i * n_dimensions + j]);
+        }
+        fprintf(output_file, "%d\n", cluster_id[i]);
+    }
     fclose(output_file);
 
     // Free memory
