@@ -32,7 +32,8 @@ double calculate_euclidean_distance(double *data_point, double *k_cluster, size_
     double sum = 0;
     for (size_t i = 0; i < n_dimensions; i++)
     {
-        sum += (data_point[i] - k_cluster[i]) * (data_point[i] - k_cluster[i]);
+        double dp_i_kc_i = data_point[i] - k_cluster[i];
+        sum += dp_i_kc_i * dp_i_kc_i;
     }
     return sum;
 }
@@ -43,9 +44,11 @@ double calculate_euclidean_distance(double *data_point, double *k_cluster, size_
 void initialize_k_clusters(Matrix* data_points, Matrix* k_clusters, unsigned long long num_data_points, unsigned long long n_dimensions, unsigned long long num_k_clusters) {
     for (size_t i = 0; i < num_k_clusters; i++) {
         size_t rand_index = rand() % num_data_points;
+        size_t i_n_dimensions = i * n_dimensions;
+        size_t rand_index_n_dimensions = rand_index * n_dimensions;
         for (size_t j = 0; j < n_dimensions; j++)
         {
-            k_clusters->data[i * n_dimensions + j] = data_points->data[rand_index * n_dimensions + j];
+            k_clusters->data[i_n_dimensions + j] = data_points->data[rand_index_n_dimensions + j];
         }
     }
 }
@@ -89,18 +92,20 @@ size_t calculate_centroids(Matrix* data_points, int* cluster_id, Matrix* k_clust
         //     sum[j] = 0;
         // }
         for (int k = 0; k < num_data_points; k++) {
+            size_t k_n_dimensions = k * n_dimensions;
             if (cluster_id[k] == i) {
                 for (int j = 0; j < n_dimensions; j++) {
-                    sum[j] += data_points->data[k * n_dimensions + j];
+                    sum[j] += data_points->data[k_n_dimensions + j];
                 }
                 count++;
             }
         }
         for (int j = 0; j < n_dimensions; j++) {
             if (count > 0) {
+                size_t i_n_dimensions_j = i * n_dimensions + j;
                 double new_centroid = sum[j] / count;
-                if (fabs(k_clusters->data[i * n_dimensions + j] - new_centroid) > TOLERANCE) {
-                    k_clusters->data[i * n_dimensions + j] = new_centroid;
+                if (fabs(k_clusters->data[i_n_dimensions_j] - new_centroid) > TOLERANCE) {
+                    k_clusters->data[i_n_dimensions_j] = new_centroid;
                     is_k_cluster_points_changed = 1;
                 }
             }
@@ -271,11 +276,11 @@ int main(int argn, char *argv[])
     // write output info
     // write to output-info-[time].txt
     char filename[64];
-    sprintf(filename, "output/output-info-%ld.txt", time(NULL));
+    sprintf(filename, "output/serial-output-info-%ld.txt", time(NULL));
     write_output_info(filename, num_k_clusters, num_data_points, cluster_id, num_data_points, num_k_clusters, iterations_reached, reason);
 
     // write output data points
-    sprintf(filename, "output/output-points-%ld.txt", time(NULL));
+    sprintf(filename, "output/serial-output-points-%ld.txt", time(NULL));
     write_output_data_points(filename, data_points, cluster_id, num_data_points, n_dimensions);
 
     // Free memory
