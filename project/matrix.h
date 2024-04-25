@@ -69,6 +69,16 @@ Matrix* matrix_identity(size_t rows, size_t cols);
 Matrix* matrix_random(size_t rows, size_t cols);
 
 /**
+ * Creates a new matrix of the given rows and columns. The data is filled in
+ * random values in [-grid_size, grid_size]. Returns the newly created matrix.
+ * 
+ * The caller is responsible for making sure srand() is appropriately called
+ * before this function is called.
+ */
+Matrix* matrix_random_grid(size_t rows, size_t cols, double grid_size);
+
+
+/**
  * Creates a new matrix which is a copy of the given matrix.
  */
 Matrix* matrix_copy(const Matrix* M);
