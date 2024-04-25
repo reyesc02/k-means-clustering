@@ -98,11 +98,13 @@ int main(int argn, char* argv[]) {
     //     cluster_id[i] = -1;
     // }
 
-    // initialize cluster_id
+    // initialize cluster_id to -1
     cluster_id = (int*)malloc(num_data_points * sizeof(int));
-    for (size_t i = 0; i < num_data_points; i++) {
-        cluster_id[i] = -1;
-    }
+    memset(cluster_id, -1, num_data_points * sizeof(int));
+
+    // for (size_t i = 0; i < num_data_points; i++) {
+    //     cluster_id[i] = -1;
+    // }
     
     // 3. randomly initialize k_clusters from data_points
     for (size_t i = 0; i < num_k_clusters; i++) {
