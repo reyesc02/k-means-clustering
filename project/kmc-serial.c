@@ -101,6 +101,9 @@ int main(int argn, char *argv[])
     size_t is_k_clusters_changed;
     size_t is_k_cluster_points_changed;
 
+    size_t iterations_reached = 0;
+    size_t reason = 0;
+
     // 6. repeat steps 4 and 5 until convergence
     for (size_t iteration = 0; iteration < max_iterations; iteration++)
     {
@@ -130,6 +133,8 @@ int main(int argn, char *argv[])
         // check for convergence
         if (!is_k_clusters_changed)
         {
+            iterations_reached = iteration;
+            reason = 1;
             // printf("is_k_clusters_changed: %d\n", is_k_clusters_changed);
             // printf("Converged at iteration %d\n", iteration);
             break;
@@ -165,6 +170,8 @@ int main(int argn, char *argv[])
         // check for convergence
         if (!is_k_cluster_points_changed)
         {
+            iterations_reached = iteration;
+            reason = 2;
             // printf("is_k_cluster_points_changed: %d\n", is_k_cluster_points_changed);
             // printf("Converged at iteration %d\n", iteration);
             break;
@@ -200,9 +207,23 @@ int main(int argn, char *argv[])
 
     // Print the reason for convergence
     // Replace 'reason' with the actual reason
-    char* reason = "max iterations reached";
-    //declare and initialize max_iterations to 
-    fprintf(output_file, "converged after %zu iterations\nconverged due to %s\n", max_iterations, reason);
+    char* reason_string;
+    switch(reason) {
+        case 0:
+            reason_string = "max iterations reached";
+            break;
+        case 1:
+            reason_string = "no change in cluster centroids";
+            break;
+        case 2:
+            reason_string = "no change in cluster points";
+            break;
+        default:
+            reason_string = "unknown";
+            break;
+    }
+    
+    fprintf(output_file, "converged after %zu iterations\nconverged due to %s\n", iterations_reached, reason_string);
 
     // Close the output file
     fclose(output_file);
