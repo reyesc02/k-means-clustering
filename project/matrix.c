@@ -106,6 +106,21 @@ Matrix* matrix_random(size_t rows, size_t cols) {
 }
 
 /**
+ * Creates a new matrix of the given rows and columns. The data is filled in
+ * random values in [-grid_size, grid_size]. Returns the newly created matrix.
+ * 
+ * The caller is responsible for making sure srand() is appropriately called
+ * before this function is called.
+ */
+Matrix* matrix_random_grid(size_t rows, size_t cols, double grid_size) {
+    Matrix* M = matrix_create_raw(rows, cols);
+    for (size_t i = 0; i < M->size; i++) {
+        M->data[i] = (double)rand() / RAND_MAX * 2 * grid_size - grid_size;
+    }
+    return M;
+}
+
+/**
  * Creates a new matrix which is a copy of the given matrix.
  */
 Matrix* matrix_copy(const Matrix* M) {
