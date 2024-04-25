@@ -13,3 +13,7 @@ https://reasonabledeviations.com/2019/10/02/k-means-in-cpp/ \
 https://www.geeksforgeeks.org/ml-k-means-algorithm/ \
 https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html \
 https://www.analyticsvidhya.com/blog/2019/08/comprehensive-guide-k-means-clustering/
+
+# misc
+https://www.csvplot.com/ \
+https://drive.google.com/drive/folders/198gXE05fUMJBQAFrZ6rHDvPyFc5YmajH?usp=sharing
