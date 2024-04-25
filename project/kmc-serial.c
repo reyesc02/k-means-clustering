@@ -36,8 +36,9 @@ double calculate_euclidean_distance(double *data_point, double *k_cluster, size_
     }
     return sum;
 }
+
 /*
-    function for randomly initialize k_clusters from data_points
+*   function for randomly initialize k_clusters from data_points
 */
 void initialize_k_clusters(Matrix* data_points, Matrix* k_clusters, unsigned long long num_data_points, unsigned long long n_dimensions, unsigned long long num_k_clusters) {
     for (size_t i = 0; i < num_k_clusters; i++) {
@@ -50,9 +51,10 @@ void initialize_k_clusters(Matrix* data_points, Matrix* k_clusters, unsigned lon
 }
 
 /*
-    function for assign each data point to the nearest centroid
+*   function for assign each data point to the nearest centroid
 */
-void assign_data_points(Matrix* data_points, Matrix* k_clusters, int* cluster_id, unsigned long long num_data_points, unsigned long long n_dimensions, unsigned long long num_k_clusters) {
+size_t assign_data_points(Matrix* data_points, Matrix* k_clusters, int* cluster_id, unsigned long long num_data_points, unsigned long long n_dimensions, unsigned long long num_k_clusters) {
+    size_t is_k_clusters_changed = 0;
     for (size_t i = 0; i < num_data_points; i++)
     {
         double min_distance = INFINITY;
@@ -66,16 +68,19 @@ void assign_data_points(Matrix* data_points, Matrix* k_clusters, int* cluster_id
             if (distance < min_distance) {
                 min_distance = distance;
                 cluster_id[i] = k;
+                is_k_clusters_changed = 1;
             }
         }
     }
+    return is_k_clusters_changed;
 }
 
 
 /*
-function for centroids calculation
+*   function for centroids calculation
 */
-void calculate_centroids(Matrix* data_points, int* cluster_id, Matrix* k_clusters, unsigned long long num_data_points, unsigned long long n_dimensions, unsigned long long num_k_clusters) {
+size_t calculate_centroids(Matrix* data_points, int* cluster_id, Matrix* k_clusters, unsigned long long num_data_points, unsigned long long n_dimensions, unsigned long long num_k_clusters) {
+    size_t is_k_cluster_points_changed = 0;
     for (int i = 0; i < num_k_clusters; i++) {
         // Loop fission for better performance
         double* sum = (double*)calloc(n_dimensions, sizeof(double));
@@ -96,11 +101,13 @@ void calculate_centroids(Matrix* data_points, int* cluster_id, Matrix* k_cluster
                 double new_centroid = sum[j] / count;
                 if (fabs(k_clusters->data[i * n_dimensions + j] - new_centroid) > TOLERANCE) {
                     k_clusters->data[i * n_dimensions + j] = new_centroid;
+                    is_k_cluster_points_changed = 1;
                 }
             }
         }
         free(sum);
     }
+    return is_k_cluster_points_changed;
 }
 
 /**
@@ -241,10 +248,10 @@ int main(int argn, char *argv[])
     // 6. repeat steps 4 and 5 until convergence
     for (size_t iteration = 0; iteration < max_iterations; iteration++)
     {
-        is_k_clusters_changed = 0;
-        is_k_cluster_points_changed = 0;
+        // is_k_clusters_changed = 0;
+        // is_k_cluster_points_changed = 0;
 
-        assign_data_points(data_points, k_clusters, cluster_id, num_data_points, n_dimensions, num_k_clusters);
+        is_k_clusters_changed = assign_data_points(data_points, k_clusters, cluster_id, num_data_points, n_dimensions, num_k_clusters);
 
         /*
         // 4. assign each data point to the nearest centroid
@@ -276,7 +283,7 @@ int main(int argn, char *argv[])
             break;
         }
 
-        calculate_centroids(data_points, cluster_id, k_clusters, num_data_points, n_dimensions, num_k_clusters);
+        is_k_clusters_changed = calculate_centroids(data_points, cluster_id, k_clusters, num_data_points, n_dimensions, num_k_clusters);
         /*
         // 5. recalculate the centroids of the clusters
         for (int i = 0; i < num_k_clusters; i++) {
