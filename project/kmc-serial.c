@@ -5,6 +5,7 @@
  * 
 */
 
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -17,6 +18,10 @@
 // tolerance constant
 #define TOLERANCE 1e-4
 
+// index of latitude and longitude in the data_points
+#define LATITUDE_INDEX 0
+#define LONGITUDE_INDEX 1
+
 /**
  * Calculate Euclidean Distance function
  * This function calculates the Euclidean distance between two points.
@@ -26,17 +31,20 @@
  * @param k_cluster: the pointer to the k_clusters row
  * @param n_dimensions: the number of dimensions
  * @return the Euclidean distance between the two points
-*/
-double calculate_euclidean_distance(double* data_point, double* k_cluster, size_t n_dimensions) {
+ */
+double calculate_euclidean_distance(double *data_point, double *k_cluster, size_t n_dimensions)
+{
     double sum = 0;
-    for (size_t i = 0; i < n_dimensions; i++) {
+    for (size_t i = 0; i < n_dimensions; i++)
+    {
         sum += (data_point[i] - k_cluster[i]) * (data_point[i] - k_cluster[i]);
     }
     return sum;
 }
 
-int main(int argn, char* argv[]) {
-    
+int main(int argn, char *argv[])
+{
+
     // declare variables
     unsigned long long num_data_points = 10;
     unsigned long long n_dimensions = 2;
@@ -72,44 +80,15 @@ int main(int argn, char* argv[]) {
         return 1;
     }
 
-    // printf("num_data_points: %llu\n", num_data_points);
-    // printf("n_dimensions: %llu\n", n_dimensions);
-    // printf("num_k_clusters: %llu\n", num_k_clusters);
-
-    // if (argn != 3) { printf("Error: Please provide the input file\n"); return 1; }
-    // Matrix* data_points = matrix_from_csv_path(argv[1]);
-    // if (data_points == NULL) { perror("error reading input"); return 1; }
-    // n_dimensions = data_points->cols;
-    // num_data_points = data_points->rows;
-    // num_k_clusters = atoi(argv[2]);
-    // Matrix* k_clusters = matrix_create_raw(num_k_clusters, n_dimensions);
-    // int* cluster_id = (int*)malloc(num_data_points * sizeof(int));
-
-    // printf("num_data_points: %llu\n", num_data_points);
-    // printf("n_dimensions: %llu\n", n_dimensions);
-    // printf("num_k_clusters: %llu\n", num_k_clusters);
-
-    // randomly initialize data_points between -GRID_SIZE and GRID_SIZE
-    // srand(0);
-    // for (size_t i = 0; i < num_data_points; i++) {
-    //     for (size_t j = 0; j < n_dimensions; j++) {
-    //         data_points[i][j] = (double)rand() / RAND_MAX * 2 * grid_size - grid_size;
-    //     }
-    //     cluster_id[i] = -1;
-    // }
-
     // initialize cluster_id to -1
     cluster_id = (int*)malloc(num_data_points * sizeof(int));
     memset(cluster_id, -1, num_data_points * sizeof(int));
-
-    // for (size_t i = 0; i < num_data_points; i++) {
-    //     cluster_id[i] = -1;
-    // }
     
     // 3. randomly initialize k_clusters from data_points
     for (size_t i = 0; i < num_k_clusters; i++) {
         size_t rand_index = rand() % num_data_points;
-        for (size_t j = 0; j < n_dimensions; j++) {
+        for (size_t j = 0; j < n_dimensions; j++)
+        {
             k_clusters->data[i * n_dimensions + j] = data_points->data[rand_index * n_dimensions + j];
         }
     }
@@ -119,13 +98,18 @@ int main(int argn, char* argv[]) {
     size_t is_k_clusters_changed;
     size_t is_k_cluster_points_changed;
 
+    size_t iterations_reached = 0;
+    size_t reason = 0;
+
     // 6. repeat steps 4 and 5 until convergence
-    for (size_t iteration = 0; iteration < max_iterations; iteration++) {
+    for (size_t iteration = 0; iteration < max_iterations; iteration++)
+    {
         is_k_clusters_changed = 0;
         is_k_cluster_points_changed = 0;
-        
+
         // 4. assign each data point to the nearest centroid
-        for (size_t i = 0; i < num_data_points; i++) {
+        for (size_t i = 0; i < num_data_points; i++)
+        {
             double min_distance = INFINITY;
             int current_cluster_id = cluster_id[i];
             int i_n_dimensions = i * n_dimensions;
@@ -143,9 +127,12 @@ int main(int argn, char* argv[]) {
         }
 
         // check for convergence
-        if (!is_k_clusters_changed) {
-            //printf("is_k_clusters_changed: %d\n", is_k_clusters_changed);
-            //printf("Converged at iteration %d\n", iteration);
+        if (!is_k_clusters_changed)
+        {
+            iterations_reached = iteration;
+            reason = 1;
+            // printf("is_k_clusters_changed: %d\n", is_k_clusters_changed);
+            // printf("Converged at iteration %d\n", iteration);
             break;
         }
 
@@ -178,39 +165,80 @@ int main(int argn, char* argv[]) {
         }
 
         // check for convergence
-        if (!is_k_cluster_points_changed) {
-            //printf("is_k_cluster_points_changed: %d\n", is_k_cluster_points_changed);
-            //printf("Converged at iteration %d\n", iteration);
+        if (!is_k_cluster_points_changed)
+        {
+            iterations_reached = iteration;
+            reason = 2;
+            // printf("is_k_cluster_points_changed: %d\n", is_k_cluster_points_changed);
+            // printf("Converged at iteration %d\n", iteration);
             break;
         }
     }
 
-    // print the data_points and their x, y, and cluster_id to output.txt separated by a comma
-    // filename is output-date-time.txt in the output folder
-    size_t start_col = 0;
-    size_t end_col = n_dimensions - 1;
+    // write output info to output-info-[time].txt    
     char filename[256];
-    sprintf(filename, "output/output-%ld.txt", time(NULL));
-    FILE* output_file = fopen(filename, "w");
-    // print the header
-    // latitude, longitude, cluster_id
-    fprintf(output_file, "latitude,longitude,cluster_id\n");
-    //FILE* output_file = fopen("output.txt", "w");
+    sprintf(filename, "output/output-info-%ld.txt", time(NULL));
+    FILE *output_file = fopen(filename, "w");
+    if (output_file == NULL)
+    {
+        printf("Error opening file for writing.\n");
+        return 1;
+    }
+
+    // Print the number of clusters and points
+    fprintf(output_file, "num_clusters\t%llu\nnum_points\t%llu\n\n", num_k_clusters, num_data_points);
+
+    // Initialize an array to count the number of points in each cluster
+    int* points_in_cluster = calloc(num_k_clusters, sizeof(int));
     for (size_t i = 0; i < num_data_points; i++) {
-        for (size_t j = start_col; j <= end_col; j++) {
-            fprintf(output_file, "%lf", data_points->data[i * n_dimensions + j]);
-            if (j < end_col) {
-                fprintf(output_file, ",");
-            }
+        points_in_cluster[cluster_id[i]]++; 
+    }
+
+    // Print the number of points in each cluster
+    fprintf(output_file, "cluster\tnum_points\n");
+    for (size_t i = 0; i < num_k_clusters; i++) {
+        fprintf(output_file, "%zu\t%d\n", i, points_in_cluster[i]);
+    }
+    fprintf(output_file, "\n");
+
+    // Print the reason for convergence
+    char* reason_string;
+    switch(reason) {
+        case 0:
+            reason_string = "max iterations reached";
+            break;
+        case 1:
+            reason_string = "no change in cluster centroids";
+            break;
+        case 2:
+            reason_string = "no change in cluster points";
+            break;
+        default:
+            reason_string = "unknown";
+            break;
+    }
+    
+    fprintf(output_file, "converged after %zu iterations\nconverged due to %s\n", iterations_reached, reason_string);
+
+    // Close the output file
+    fclose(output_file);
+
+    // Print data_points and cluster_id
+    sprintf(filename, "output/output-data-points-%ld.csv", time(NULL));
+    output_file = fopen(filename, "w");
+    for (size_t i = 0; i < num_data_points; i++) {
+        for (size_t j = 0; j < n_dimensions; j++) {
+            fprintf(output_file, "%f,", data_points->data[i * n_dimensions + j]);
         }
-        fprintf(output_file, ",%d\n", cluster_id[i]);
+        fprintf(output_file, "%d\n", cluster_id[i]);
     }
     fclose(output_file);
 
-    // free memory
+    // Free memory
     matrix_free(data_points);
     free(cluster_id);
     matrix_free(k_clusters);
+    free(points_in_cluster);
 
     return 0;
 }
