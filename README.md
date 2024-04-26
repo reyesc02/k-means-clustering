@@ -17,3 +17,6 @@ https://www.analyticsvidhya.com/blog/2019/08/comprehensive-guide-k-means-cluster
 # misc
 https://www.csvplot.com/ \
 https://drive.google.com/drive/folders/198gXE05fUMJBQAFrZ6rHDvPyFc5YmajH?usp=sharing
+
+# analysis-data
+https://docs.google.com/spreadsheets/d/11CORzLgJhZhzUTgbI0QkkfC3q2WNo65N1qv9jHngP0c/edit?usp=sharing
