@@ -279,7 +279,7 @@ int main(int argn, char* argv[]) {
     // print the results
     print_results_to_file(iteration_converged, reason_converged, time_taken);
 
-    // free memory
+    // Free memory
     matrix_free(data_points);
     free(cluster_id);
     matrix_free(k_clusters);
