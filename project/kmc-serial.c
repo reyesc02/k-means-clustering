@@ -64,7 +64,7 @@ bool parse_command_line_arguments(int argn, char* argv[]) {
         grid_size = 1024;
         srand(0);
         data_points = matrix_random_grid(num_data_points, n_dimensions, grid_size);
-    } else if (argn = 3) {
+    } else if (argn == 3) {
         data_points = matrix_from_csv_path(argv[1]);
         if (data_points == NULL) { perror("error reading input"); return false; }
         n_dimensions = data_points->cols;
@@ -238,7 +238,7 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
                 count++;
             }
         }
-        fprintf(file, "Cluster %llu: %d\n", i, count);
+        fprintf(file, "Cluster %zu: %d\n", i, count);
     } fprintf(file, "\n");
 
     // print iteration converged and reason
