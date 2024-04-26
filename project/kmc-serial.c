@@ -210,7 +210,7 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
 
     // output data_points and cluster_id to file
     char output_file[128];
-    sprintf(output_file, "output/output-%s-data.csv", timestamp);
+    sprintf(output_file, "output/serial-output-%s-data.csv", timestamp);
     FILE* file = fopen(output_file, "w");
     if (file == NULL) { perror("error writing output"); return; }
     for (size_t i = 0; i < num_data_points; i++) {
@@ -222,7 +222,7 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
     fclose(file);
 
     // output program info
-    sprintf(output_file, "output/output-%s-info.txt", timestamp);
+    sprintf(output_file, "output/serial-output-%s-info.txt", timestamp);
     file = fopen(output_file, "w");
     if (file == NULL) { perror("error writing output"); return; }
     fprintf(file, "Data Points: %llu\n", num_data_points);
