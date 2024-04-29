@@ -10,7 +10,9 @@
 
 #include "matrix.hpp"
 
-#define WRITE_OUTPUT 0
+#define WRITE_OUTPUT 1
+
+#define TOLERANCE 1e-6
 
 // global variables
 unsigned long long num_data_points;
@@ -23,6 +25,11 @@ int *cluster_id;
 Matrix<double> *centroids;
 
 __global__ void assign_data_points_to_clusters(const double *data_points, int *cluster_id, const double *centroids, const unsigned long long *num_data_points, const unsigned long long *num_dimensions, const unsigned long long *num_clusters, bool *changed) {
+	// each thread will calculate the distance between a data point and all centroids
+	// and assign the data point to the cluster with the minimum distance
+
+	// get data point index
+
 	unsigned long long data_point_index = blockIdx.x * blockDim.x + threadIdx.x;
 	if (data_point_index >= *num_data_points) {
 		return;
@@ -52,29 +59,36 @@ __global__ void recalculate_centroids(const double *data_points, const int *clus
 	if (cluster_index >= *num_clusters) {
 		return;
 	}
-	for (int i = 0; i < *num_clusters; i++) {
-		double* sum = new double[*num_dimensions];
-		for (int j = 0; j < *num_dimensions; j++) {
-			sum[j] = 0;
-		}
-		int count = 0;
-		for (int k = 0; k < *num_data_points; k++) {
-			if (cluster_id[k] == i) {
-				for (int j = 0; j < *num_dimensions; j++) {
-					sum[j] += data_points[k * (*num_dimensions) + j];
-				}
-				count++;
-			}
-		}
-		if (count > 0) {
-			for (int j = 0; j < *num_dimensions; j++) {
-				centroids[i * (*num_dimensions) + j] = sum[j] / count;
-				*changed = true;
-			}
-		}
-		// free memory
-		delete[] sum;
+	
+	// calculate the new centroid for the cluster
+	int count = 0;
+	double *sum = new double[*num_dimensions];
+	for (unsigned long long i = 0; i < *num_dimensions; i++) {
+		sum[i] = 0;
 	}
+
+	for (unsigned long long i = 0; i < *num_data_points; i++) {
+		if (cluster_id[i] == cluster_index) {
+			count++;
+			for (unsigned long long j = 0; j < *num_dimensions; j++) {
+				sum[j] += data_points[i * (*num_dimensions) + j];
+			}
+		}
+	}
+
+	if (count == 0) {
+		return;
+	}
+
+	for (unsigned long long i = 0; i < *num_dimensions; i++) {
+		double new_centroid = sum[i] / count;
+		if (fabs(centroids[cluster_index * (*num_dimensions) + i] - new_centroid) > TOLERANCE) {
+			*changed = true;
+			centroids[cluster_index * (*num_dimensions) + i] = new_centroid;
+		}
+	}
+
+	delete[] sum;
 }
 
 /**
