@@ -88,11 +88,13 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
     struct tm tm = *localtime(&t);
     sprintf(timestamp, "%d-%d-%d-%d-%d-%d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
-	if (WRITE_OUTPUT) {
-		// output data_points and cluster_id to file
-		char output_file[128];
+	
+	// output data_points and cluster_id to file
+	char output_file[128];
+	FILE* file;
+		if (WRITE_OUTPUT) {
 		sprintf(output_file, "output/cuda-output-%s-data.csv", timestamp);
-		FILE* file = fopen(output_file, "w");
+		file = fopen(output_file, "w");
 		if (file == NULL) { perror("error writing output"); return; }
 		for (size_t i = 0; i < num_data_points; i++) {
 			for (size_t j = 0; j < num_dimensions; j++) {
@@ -238,10 +240,13 @@ int main(int argn, char* argv[]) {
 		assign_data_points_to_clusters<<<(num_data_points + 255) / 256, 256>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters, d_changed);
 		cudaMemcpy(&changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
 
-		// copy cluster id to host
-		cudaMemcpy(cluster_id, d_cluster_id, num_data_points * sizeof(int), cudaMemcpyDeviceToHost);
+		
 
 		if (!changed) {
+			// copy cluster id to host
+			cudaMemcpy(cluster_id, d_cluster_id, num_data_points * sizeof(int), cudaMemcpyDeviceToHost);
+			// copy centroids to host
+			cudaMemcpy(centroids->data, d_centroids, num_clusters * num_dimensions * sizeof(double), cudaMemcpyDeviceToHost);
 			break;
 		}
 
@@ -250,10 +255,13 @@ int main(int argn, char* argv[]) {
 		recalculate_centroids<<<(num_clusters + 255) / 256, 256>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters, d_changed);
 		cudaMemcpy(&changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
 
-		// copy centroids to host
-		cudaMemcpy(centroids->data, d_centroids, num_clusters * num_dimensions * sizeof(double), cudaMemcpyDeviceToHost);
+		
 
 		if (!changed) {
+			// copy cluster id to host
+			cudaMemcpy(cluster_id, d_cluster_id, num_data_points * sizeof(int), cudaMemcpyDeviceToHost);
+			// copy centroids to host
+			cudaMemcpy(centroids->data, d_centroids, num_clusters * num_dimensions * sizeof(double), cudaMemcpyDeviceToHost);
 			break;
 		}
 	}
@@ -263,6 +271,7 @@ int main(int argn, char* argv[]) {
 	double time_taken = (double)(end - start) / CLOCKS_PER_SEC;
 
 	printf("converged after %d iterations\n", iteration);
+	printf("time taken: %f seconds\n", time_taken);
 
 	// print results to file
 	print_results_to_file(iteration, 0, time_taken);
