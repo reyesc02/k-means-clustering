@@ -20,14 +20,15 @@ Matrix<double> *data_points;
 int *cluster_id;
 Matrix<double> *centroids;
 
-__global__ void assign_data_points_to_clusters(const double *data_points, int *cluster_id, const double *centroids, const unsigned long long *num_data_points, const unsigned long long *num_dimensions, const unsigned long long *num_clusters) {
+__global__ void assign_data_points_to_clusters(const double *data_points, int *cluster_id, const double *centroids, const unsigned long long *num_data_points, const unsigned long long *num_dimensions, const unsigned long long *num_clusters, bool *changed) {
+	//*changed = false;
 	unsigned long long data_point_index = blockIdx.x * blockDim.x + threadIdx.x;
 	if (data_point_index >= *num_data_points) {
 		return;
 	}
 
 	double min_distance = 1e9;
-	int min_cluster_id = -1;
+	int min_cluster_id = cluster_id[data_point_index];
 	for (unsigned long long cluster_index = 0; cluster_index < *num_clusters; cluster_index++) {
 		double distance = 0;
 		for (unsigned long long dimension_index = 0; dimension_index < *num_dimensions; dimension_index++) {
@@ -39,41 +40,40 @@ __global__ void assign_data_points_to_clusters(const double *data_points, int *c
 			min_cluster_id = cluster_index;
 		}
 	}
-	cluster_id[data_point_index] = min_cluster_id;
-
+	if (cluster_id[data_point_index] != min_cluster_id) {
+		*changed = true;
+		cluster_id[data_point_index] = min_cluster_id;
+	}
 }
 
-__global__ void recalculate_centroids(const double *data_points, const int *cluster_id, double *centroids, const unsigned long long *num_data_points, const unsigned long long *num_dimensions, const unsigned long long *num_clusters) {
+__global__ void recalculate_centroids(const double *data_points, const int *cluster_id, double *centroids, const unsigned long long *num_data_points, const unsigned long long *num_dimensions, const unsigned long long *num_clusters, bool *changed) {
+	//*changed = false;
 	unsigned long long cluster_index = blockIdx.x * blockDim.x + threadIdx.x;
 	if (cluster_index >= *num_clusters) {
 		return;
 	}
-
-	unsigned long long num_data_points_in_cluster = 0;
-	for (unsigned long long data_point_index = 0; data_point_index < *num_data_points; data_point_index++) {
-		if (cluster_id[data_point_index] == cluster_index) {
-			num_data_points_in_cluster++;
+	for (int i = 0; i < *num_clusters; i++) {
+		double* sum = new double[*num_dimensions];
+		for (int j = 0; j < *num_dimensions; j++) {
+			sum[j] = 0;
 		}
-	}
-
-	if (num_data_points_in_cluster == 0) {
-		return;
-	}
-
-	for (unsigned long long dimension_index = 0; dimension_index < *num_dimensions; dimension_index++) {
-		centroids[cluster_index * (*num_dimensions) + dimension_index] = 0;
-	}
-
-	for (unsigned long long data_point_index = 0; data_point_index < *num_data_points; data_point_index++) {
-		if (cluster_id[data_point_index] == cluster_index) {
-			for (unsigned long long dimension_index = 0; dimension_index < *num_dimensions; dimension_index++) {
-				centroids[cluster_index * (*num_dimensions) + dimension_index] += data_points[data_point_index * (*num_dimensions) + dimension_index];
+		int count = 0;
+		for (int k = 0; k < *num_data_points; k++) {
+			if (cluster_id[k] == i) {
+				for (int j = 0; j < *num_dimensions; j++) {
+					sum[j] += data_points[k * (*num_dimensions) + j];
+				}
+				count++;
 			}
 		}
-	}
-
-	for (unsigned long long dimension_index = 0; dimension_index < *num_dimensions; dimension_index++) {
-		centroids[cluster_index * (*num_dimensions) + dimension_index] /= num_data_points_in_cluster;
+		if (count > 0) {
+			for (int j = 0; j < *num_dimensions; j++) {
+				centroids[i * (*num_dimensions) + j] = sum[j] / count;
+				*changed = true;
+			}
+		}
+		// free memory
+		delete[] sum;
 	}
 }
 
@@ -209,18 +209,38 @@ int main(int argn, const char* argv[]) {
 	int max_iterations = 300;
 	int iteration;
 
+	bool changed = false;
+
+	// copy changed to device
+	bool *d_changed;
+	cudaMalloc(&d_changed, sizeof(bool));
+
+	bool false_value = false;
+
 	for (iteration = 0; iteration < max_iterations; iteration++) {
 		// assign data points to clusters
-		assign_data_points_to_clusters<<<(num_data_points + 255) / 256, 256>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters);
+		cudaMemcpy(d_changed, &false_value, sizeof(bool), cudaMemcpyHostToDevice); // set changed to false (host)
+		assign_data_points_to_clusters<<<(num_data_points + 255) / 256, 256>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters, d_changed);
+		cudaMemcpy(&changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
 
-		// copy cluster id back to host
+		// copy cluster id to host
 		cudaMemcpy(cluster_id, d_cluster_id, num_data_points * sizeof(int), cudaMemcpyDeviceToHost);
 
-		// recalculate centroids
-		recalculate_centroids<<<(num_clusters + 255) / 256, 256>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters);
+		if (!changed) {
+			break;
+		}
 
-		// copy centroids back to host
+		// recalculate centroids
+		cudaMemcpy(d_changed, &false_value, sizeof(bool), cudaMemcpyHostToDevice); // set changed to false (host)
+		recalculate_centroids<<<(num_clusters + 255) / 256, 256>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters, d_changed);
+		cudaMemcpy(&changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
+
+		// copy centroids to host
 		cudaMemcpy(centroids->data, d_centroids, num_clusters * num_dimensions * sizeof(double), cudaMemcpyDeviceToHost);
+
+		if (!changed) {
+			break;
+		}
 	}
 
 	printf("converged after %d iterations\n", iteration);
@@ -241,7 +261,7 @@ int main(int argn, const char* argv[]) {
 	cudaFree(d_num_dimensions);
 	cudaFree(d_num_clusters);
 
-
+	cudaFree(d_changed);
 
 	return 0;
 }
