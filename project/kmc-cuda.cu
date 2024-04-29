@@ -251,10 +251,10 @@ int main(int argn, char* argv[]) {
 	for (iteration = 0; iteration < max_iterations; iteration++) {
 		// assign data points to clusters
 		cudaMemcpy(d_changed, &false_value, sizeof(bool), cudaMemcpyHostToDevice); // set changed to false (host)
-		assign_data_points_to_clusters<<<(num_data_points + 255) / 256, 256>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters, d_changed);
-		cudaMemcpy(&changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
-
+		assign_data_points_to_clusters<<<16, 24>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters, d_changed);
+		cudaDeviceSynchronize();
 		
+		cudaMemcpy(&changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
 
 		if (!changed) {
 			// copy cluster id to host
@@ -266,10 +266,10 @@ int main(int argn, char* argv[]) {
 
 		// recalculate centroids
 		cudaMemcpy(d_changed, &false_value, sizeof(bool), cudaMemcpyHostToDevice); // set changed to false (host)
-		recalculate_centroids<<<(num_clusters + 255) / 256, 256>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters, d_changed);
-		cudaMemcpy(&changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
-
+		recalculate_centroids<<<16, 24>>>(d_data_points, d_cluster_id, d_centroids, d_num_data_points, d_num_dimensions, d_num_clusters, d_changed);
+		cudaDeviceSynchronize();
 		
+		cudaMemcpy(&changed, d_changed, sizeof(bool), cudaMemcpyDeviceToHost);
 
 		if (!changed) {
 			// copy cluster id to host
