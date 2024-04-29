@@ -1,6 +1,10 @@
 # k-means-clustering
 cs392-final-project
 
+This project is an implementation of the naive k-means algorithm (Lloyd's algorithm). There are 3 versions of the program: Serial, parallel with OpenMP and parallel with CUDA.
+
+To run this program you can either use randomly generated data by supplying command line arguments or load data from a csv file. All 3 versions support n-ary sized data. The sample housing data is not provided in this github repo but can be downloaded from the misc section google drive link.
+
 # contributors
 [Carl Reyes](https://github.com/reyesc02)\
 [Brian Demyan](https://github.com/elon-shmusk)\
