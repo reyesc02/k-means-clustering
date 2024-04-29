@@ -33,9 +33,9 @@ static inline size_t __npy_read_header(std::istream& file, size_t* shape);
 template <typename T>
 class Matrix {
 private:
-    char _data_source; // one of DATA_MALLOCED, DATA_MEMMAPPED, or DATA_BORROWED
     size_t _rows, _cols, _size;
     T* _data;
+    char _data_source; // one of DATA_MALLOCED, DATA_MEMMAPPED, or DATA_BORROWED
     void _free() {
         if (_data_source == DATA_MEMMAPPED) {
             size_t addr = (((size_t)_data) & ~(sysconf(_SC_PAGE_SIZE)-1));
@@ -233,13 +233,15 @@ public:
     Matrix<T>& identity() {
         fill_zeros();
         size_t size = std::min(_rows, _cols);
-        for (size_t i = 0, index = 0; i < _size; index += _cols+1) { _data[index] = (T)1; }
+        for (size_t i = 0; i < _size; i += size+1) { _data[i] = (T)1; }
         return *this;
     }
     /** The data is filled in random values in [0.0, 1.0]. */
     Matrix<T>& random() {
-        std::random_device dev;
-        std::mt19937_64 rng(dev());
+        // std::random_device dev;
+        // std::mt19937_64 rng(dev());
+        // seed with value 0
+        std::mt19937_64 rng(0);
 
         using dist_t = typename std::conditional<
             std::is_integral<T>::value, 
@@ -620,11 +622,12 @@ void matrix_multiplication_block(const Matrix<T>& A, const Matrix<T>& B, Matrix<
 
 //////////////////// IO Helpers ////////////////////
 template <typename T>
-static inline T __read_csv_val(const std::string& token) {
+static inline T __read_csv_val(std::string& token) {
     T val;
+    token.erase(token.find_last_not_of(" \n\r\t")+1);
     std::stringstream ss(token);
-    if (!ss >> val || !ss.eof()) {
-        std::cerr << "Not a number in CSV file, using 0.0:" << token << std::endl;
+    if (!(ss >> val) || !ss.eof()) {
+        std::cerr << "Not a number in CSV file, using 0.0: " << token << std::endl;
         return 0.0;
     }
     return val;
@@ -635,13 +638,15 @@ static inline size_t __read_csv_first_line(std::string& line, T** out) {
     size_t pos = 0, start = 0;
     size_t i = 0, size = 16;
     T* vals = (T*)malloc(16*sizeof(T));
-    while ((pos = line.find(',', start)) != std::string::npos) {
-        std::string token = line.substr(start, pos-start);
+    while (true) {
+        pos = line.find(',', start);
+        std::string token = line.substr(start, pos == std::string::npos ? std::string::npos : pos-start);
         vals[i] = __read_csv_val<T>(token);
         if (++i == size) {
             size += size > 512 ? 512 : size;
             vals = (T*)realloc(vals, size*sizeof(T));
         }
+        if (pos == std::string::npos) { break; }
         start = pos + 1;
     }
     *out = vals;
@@ -652,10 +657,12 @@ template <typename T>
 static inline void __read_csv_line(std::string& line, T* out, size_t count) {
     size_t pos = 0, start = 0;
     size_t i = 0;
-    while ((pos = line.find(',', start)) != std::string::npos) {
-        std::string token = line.substr(start, pos-start);
+    while (true) {
+        pos = line.find(',', start);
+        std::string token = line.substr(start, pos == std::string::npos ? std::string::npos : pos-start);
         out[i] = __read_csv_val<T>(token);
         if (++i == count) { return; } // stop reading
+        if (pos == std::string::npos) { break; }
         start = pos + 1;
     }
     for (size_t j = i; j < count; j++) { out[j] = (T)0; } // zero-fill remainder
