@@ -1,4 +1,5 @@
 /** K-means cuda
+ * to run: nvcc -arch=sm_86 -O3 --compiler-options -march=native kmc-cuda.cu -o kmc-cuda -lm && ./kmc-cuda
 */
 #include <iostream>
 #include <iomanip>
