@@ -16,7 +16,7 @@ unsigned long long num_dimensions;
 unsigned long long num_clusters;
 
 // global pointers (matrices)
-Matrix<double> *data_points;
+Matrix<double> data_points;
 int *cluster_id;
 Matrix<double> *centroids;
 
@@ -90,19 +90,19 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
 
     // output data_points and cluster_id to file
     char output_file[128];
-    sprintf(output_file, "output/serial-output-%s-data.csv", timestamp);
+    sprintf(output_file, "output/cuda-output-%s-data.csv", timestamp);
     FILE* file = fopen(output_file, "w");
     if (file == NULL) { perror("error writing output"); return; }
     for (size_t i = 0; i < num_data_points; i++) {
         for (size_t j = 0; j < num_dimensions; j++) {
-            fprintf(file, "%f,", data_points->data[i * num_dimensions + j]);
+            fprintf(file, "%f,", data_points.data[i * num_dimensions + j]);
         }
         fprintf(file, "%d\n", cluster_id[i]);
     }
     fclose(file);
 
     // output program info
-    sprintf(output_file, "output/serial-output-%s-info.txt", timestamp);
+    sprintf(output_file, "output/cuda-output-%s-info.txt", timestamp);
     file = fopen(output_file, "w");
     if (file == NULL) { perror("error writing output"); return; }
     fprintf(file, "Data Points: %llu\n", num_data_points);
@@ -132,13 +132,69 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
     fclose(file);   
 }
 
-int main(int argn, const char* argv[]) {
-	num_data_points = 32767;
-	num_dimensions = 2;
-	num_clusters = 8;
+/**
+ * Parse Command Line Arguments function
+ * This function parses the command line arguments and initializes
+ * the global variables.
+ * @param argn: the number of arguments
+ * @param argv: the array of arguments
+ * @return true if the command line arguments are valid, false otherwise
+ */
+bool parse_command_line_arguments(int argn, char* argv[]) {
+    if (argn == 1) {
+        num_data_points = 32767;
+        num_dimensions = 2;
+        num_clusters = 8;
+        data_points = Matrix<double>(num_data_points, num_dimensions);
+		data_points.random();
+    } else if (argn == 3) {
+        data_points = Matrix<double>::from_csv(argv[1]);
+		printf("rows: %d, cols: %d\n", data_points.rows, data_points.cols);
+        if (data_points.data == NULL) { perror("error reading input"); return false; }
+        num_dimensions = data_points.cols;
+        num_data_points = data_points.rows;
+        num_clusters = atoi(argv[2]);
+    } else if (argn == 4) {
+        num_data_points = atoi(argv[1]);
+        num_dimensions = atoi(argv[2]);
+        num_clusters = atoi(argv[3]);
+        //srand((argn == 5) ? atoi(argv[4]) : time(NULL));
+        data_points = Matrix<double>(num_data_points, num_dimensions);
+		data_points.random();
+    } else {
+        printf("Usage: %s <input_file> <num_k_clusters>\n", argv[0]);
+        printf("Usage: %s <num_data_points> <n_dimensions> <num_k_clusters> <grid_size> [seed]\n", argv[0]);
+        return false;
+    }
+    
+    // initialize cluster_id to -1
+    cluster_id = new int[num_data_points];
+	for (int i = 0; i < num_data_points; i++) {
+		cluster_id[i] = -1;
+	}
 
-	data_points = new Matrix<double>(num_data_points, num_dimensions);
-	data_points->random();
+    // randomly initialize k_clusters from data_points
+    centroids = new Matrix<double>(num_clusters, num_dimensions);
+	for (int i = 0; i < num_clusters; i++) {
+		int random_index = rand() % num_data_points;
+		for (int j = 0; j < num_dimensions; j++) {
+			centroids->data[i * num_dimensions + j] = data_points.data[random_index * num_dimensions + j];
+		}
+	}
+
+    return true;
+}
+
+int main(int argn, char* argv[]) {
+	// num_data_points = 32767;
+	// num_dimensions = 2;
+	// num_clusters = 8;
+
+	// parse command line arguments
+    if(!parse_command_line_arguments(argn, argv)) { return 1; }
+
+	// data_points = new Matrix<double>(num_data_points, num_dimensions);
+	// data_points->random();
 
 	// printf("Data points:\n");
 	// for (int i = 0; i < num_data_points; i++) {
@@ -148,10 +204,10 @@ int main(int argn, const char* argv[]) {
 	// 	printf("\n");
 	// }
 
-	cluster_id = new int[num_data_points];
-	for (int i = 0; i < num_data_points; i++) {
-		cluster_id[i] = -1;
-	}
+	// cluster_id = new int[num_data_points];
+	// for (int i = 0; i < num_data_points; i++) {
+	// 	cluster_id[i] = -1;
+	// }
 
 	// printf("Cluster id:\n");
 	// for (int i = 0; i < num_data_points; i++) {
@@ -159,14 +215,14 @@ int main(int argn, const char* argv[]) {
 	// }
 	// printf("\n");
 
-	srand(0);
-	centroids = new Matrix<double>(num_clusters, num_dimensions);
-	for (int i = 0; i < num_clusters; i++) {
-		int random_index = rand() % num_data_points;
-		for (int j = 0; j < num_dimensions; j++) {
-			centroids->data[i * num_dimensions + j] = data_points->data[random_index * num_dimensions + j];
-		}
-	}
+	// srand(0);
+	// centroids = new Matrix<double>(num_clusters, num_dimensions);
+	// for (int i = 0; i < num_clusters; i++) {
+	// 	int random_index = rand() % num_data_points;
+	// 	for (int j = 0; j < num_dimensions; j++) {
+	// 		centroids->data[i * num_dimensions + j] = data_points->data[random_index * num_dimensions + j];
+	// 	}
+	// }
 
 	// printf("Centroids:\n");
 	// for (int i = 0; i < num_clusters; i++) {
@@ -196,7 +252,7 @@ int main(int argn, const char* argv[]) {
 	int *d_cluster_id;
 	double *d_centroids;
 	cudaMalloc(&d_data_points, num_data_points * num_dimensions * sizeof(double));
-	cudaMemcpy(d_data_points, data_points->data, num_data_points * num_dimensions * sizeof(double), cudaMemcpyHostToDevice);
+	cudaMemcpy(d_data_points, data_points.data, num_data_points * num_dimensions * sizeof(double), cudaMemcpyHostToDevice);
 
 	// copy cluster id to device
 	cudaMalloc(&d_cluster_id, num_data_points * sizeof(int));
@@ -249,7 +305,6 @@ int main(int argn, const char* argv[]) {
 	print_results_to_file(iteration, 0, 0);
 
 	// free memory
-	delete data_points;
 	delete centroids;
 	delete cluster_id;
 
