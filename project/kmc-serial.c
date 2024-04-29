@@ -14,6 +14,8 @@
 
 #include "matrix.h"
 
+#define WRITE_OUTPUT 0
+
 // tolerance constant
 #define TOLERANCE 1e-4
 
@@ -208,18 +210,20 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
     struct tm tm = *localtime(&t);
     sprintf(timestamp, "%d-%d-%d-%d-%d-%d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
-    // output data_points and cluster_id to file
-    char output_file[128];
-    sprintf(output_file, "output/serial-output-%s-data.csv", timestamp);
-    FILE* file = fopen(output_file, "w");
-    if (file == NULL) { perror("error writing output"); return; }
-    for (size_t i = 0; i < num_data_points; i++) {
-        for (size_t j = 0; j < n_dimensions; j++) {
-            fprintf(file, "%f,", data_points->data[i * n_dimensions + j]);
+    if (WRITE_OUTPUT) {
+        // output data_points and cluster_id to file
+        char output_file[128];
+        sprintf(output_file, "output/serial-output-%s-data.csv", timestamp);
+        FILE* file = fopen(output_file, "w");
+        if (file == NULL) { perror("error writing output"); return; }
+        for (size_t i = 0; i < num_data_points; i++) {
+            for (size_t j = 0; j < n_dimensions; j++) {
+                fprintf(file, "%f,", data_points->data[i * n_dimensions + j]);
+            }
+            fprintf(file, "%d\n", cluster_id[i]);
         }
-        fprintf(file, "%d\n", cluster_id[i]);
+        fclose(file);
     }
-    fclose(file);
 
     // output program info
     sprintf(output_file, "output/serial-output-%s-info.txt", timestamp);

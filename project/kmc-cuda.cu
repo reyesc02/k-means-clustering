@@ -10,6 +10,8 @@
 
 #include "matrix.hpp"
 
+#define WRITE_OUTPUT 0
+
 // global variables
 unsigned long long num_data_points;
 unsigned long long num_dimensions;
@@ -21,7 +23,6 @@ int *cluster_id;
 Matrix<double> *centroids;
 
 __global__ void assign_data_points_to_clusters(const double *data_points, int *cluster_id, const double *centroids, const unsigned long long *num_data_points, const unsigned long long *num_dimensions, const unsigned long long *num_clusters, bool *changed) {
-	//*changed = false;
 	unsigned long long data_point_index = blockIdx.x * blockDim.x + threadIdx.x;
 	if (data_point_index >= *num_data_points) {
 		return;
@@ -47,7 +48,6 @@ __global__ void assign_data_points_to_clusters(const double *data_points, int *c
 }
 
 __global__ void recalculate_centroids(const double *data_points, const int *cluster_id, double *centroids, const unsigned long long *num_data_points, const unsigned long long *num_dimensions, const unsigned long long *num_clusters, bool *changed) {
-	//*changed = false;
 	unsigned long long cluster_index = blockIdx.x * blockDim.x + threadIdx.x;
 	if (cluster_index >= *num_clusters) {
 		return;
@@ -88,18 +88,20 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
     struct tm tm = *localtime(&t);
     sprintf(timestamp, "%d-%d-%d-%d-%d-%d", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
-    // output data_points and cluster_id to file
-    char output_file[128];
-    sprintf(output_file, "output/cuda-output-%s-data.csv", timestamp);
-    FILE* file = fopen(output_file, "w");
-    if (file == NULL) { perror("error writing output"); return; }
-    for (size_t i = 0; i < num_data_points; i++) {
-        for (size_t j = 0; j < num_dimensions; j++) {
-            fprintf(file, "%f,", data_points.data[i * num_dimensions + j]);
-        }
-        fprintf(file, "%d\n", cluster_id[i]);
-    }
-    fclose(file);
+	if (WRITE_OUTPUT) {
+		// output data_points and cluster_id to file
+		char output_file[128];
+		sprintf(output_file, "output/cuda-output-%s-data.csv", timestamp);
+		FILE* file = fopen(output_file, "w");
+		if (file == NULL) { perror("error writing output"); return; }
+		for (size_t i = 0; i < num_data_points; i++) {
+			for (size_t j = 0; j < num_dimensions; j++) {
+				fprintf(file, "%f,", data_points.data[i * num_dimensions + j]);
+			}
+			fprintf(file, "%d\n", cluster_id[i]);
+		}
+		fclose(file);
+	}
 
     // output program info
     sprintf(output_file, "output/cuda-output-%s-info.txt", timestamp);
@@ -158,7 +160,6 @@ bool parse_command_line_arguments(int argn, char* argv[]) {
         num_data_points = atoi(argv[1]);
         num_dimensions = atoi(argv[2]);
         num_clusters = atoi(argv[3]);
-        //srand((argn == 5) ? atoi(argv[4]) : time(NULL));
         data_points = Matrix<double>(num_data_points, num_dimensions);
 		data_points.random();
     } else {
@@ -186,52 +187,8 @@ bool parse_command_line_arguments(int argn, char* argv[]) {
 }
 
 int main(int argn, char* argv[]) {
-	// num_data_points = 32767;
-	// num_dimensions = 2;
-	// num_clusters = 8;
-
 	// parse command line arguments
-    if(!parse_command_line_arguments(argn, argv)) { return 1; }
-
-	// data_points = new Matrix<double>(num_data_points, num_dimensions);
-	// data_points->random();
-
-	// printf("Data points:\n");
-	// for (int i = 0; i < num_data_points; i++) {
-	// 	for (int j = 0; j < num_dimensions; j++) {
-	// 		printf("%f ", data_points->data[i * num_dimensions + j]);
-	// 	}
-	// 	printf("\n");
-	// }
-
-	// cluster_id = new int[num_data_points];
-	// for (int i = 0; i < num_data_points; i++) {
-	// 	cluster_id[i] = -1;
-	// }
-
-	// printf("Cluster id:\n");
-	// for (int i = 0; i < num_data_points; i++) {
-	// 	printf("%d ", cluster_id[i]);
-	// }
-	// printf("\n");
-
-	// srand(0);
-	// centroids = new Matrix<double>(num_clusters, num_dimensions);
-	// for (int i = 0; i < num_clusters; i++) {
-	// 	int random_index = rand() % num_data_points;
-	// 	for (int j = 0; j < num_dimensions; j++) {
-	// 		centroids->data[i * num_dimensions + j] = data_points->data[random_index * num_dimensions + j];
-	// 	}
-	// }
-
-	// printf("Centroids:\n");
-	// for (int i = 0; i < num_clusters; i++) {
-	// 	for (int j = 0; j < num_dimensions; j++) {
-	// 		printf("%f ", centroids->data[i * num_dimensions + j]);
-	// 	}
-	// 	printf("\n");
-	// }
-
+    if(!parse_command_line_arguments(argn, argv)) { return 1; };
 
 	// copy global variables to device
 	unsigned long long *d_num_data_points;
@@ -262,16 +219,18 @@ int main(int argn, char* argv[]) {
 	cudaMalloc(&d_centroids, num_clusters * num_dimensions * sizeof(double));
 	cudaMemcpy(d_centroids, centroids->data, num_clusters * num_dimensions * sizeof(double), cudaMemcpyHostToDevice);
 
+	// k-means algorithm
 	int max_iterations = 300;
 	int iteration;
 
-	bool changed = false;
-
 	// copy changed to device
+	bool changed = false;
+	const bool false_value = false;
 	bool *d_changed;
 	cudaMalloc(&d_changed, sizeof(bool));
 
-	bool false_value = false;
+	// start time
+	clock_t start = clock();
 
 	for (iteration = 0; iteration < max_iterations; iteration++) {
 		// assign data points to clusters
@@ -299,10 +258,14 @@ int main(int argn, char* argv[]) {
 		}
 	}
 
+	// end time
+	clock_t end = clock();
+	double time_taken = (double)(end - start) / CLOCKS_PER_SEC;
+
 	printf("converged after %d iterations\n", iteration);
 
 	// print results to file
-	print_results_to_file(iteration, 0, 0);
+	print_results_to_file(iteration, 0, time_taken);
 
 	// free memory
 	delete centroids;
