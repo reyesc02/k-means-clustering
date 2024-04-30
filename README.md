@@ -16,7 +16,8 @@ https://github.com/pramsey/kmeans \
 https://reasonabledeviations.com/2019/10/02/k-means-in-cpp/ \
 https://www.geeksforgeeks.org/ml-k-means-algorithm/ \
 https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html \
-https://www.analyticsvidhya.com/blog/2019/08/comprehensive-guide-k-means-clustering/
+https://www.analyticsvidhya.com/blog/2019/08/comprehensive-guide-k-means-clustering/ \
+https://alexminnaar.com/2019/03/05/cuda-kmeans.html#:~:text=K-means%20clustering%20is%20a,and%20iterates%20between%20two%20steps
 
 # misc
 https://www.csvplot.com/ \

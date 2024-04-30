@@ -212,7 +212,7 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
 
     
     // output data_points and cluster_id to file
-    char output_file[128];
+    char output_file[512];
     FILE* file;
     if (WRITE_OUTPUT) {
         sprintf(output_file, "output/serial-output-%s-data.csv", timestamp);
