@@ -220,7 +220,7 @@ void print_results_to_file(int iteration_converged, int reason_converged, double
     // output data_points and cluster_id to file
     char output_file[512];
     FILE* file;
-        if (WRITE_OUTPUT) {
+    if (WRITE_OUTPUT) {
         sprintf(output_file, "output/openmp-output-%s-data.csv", timestamp);
         file = fopen(output_file, "w");
         if (file == NULL) { perror("error writing output"); return; }
