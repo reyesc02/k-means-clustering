@@ -1,8 +1,27 @@
 /**
- * to compile and run this file, run the following command:
- *    gcc -lm -o kmc-serial kmc-serial.c matrix.c && ./kmc-serial data/housing.csv 8
- *    gcc -lm -o kmc-serial kmc-serial.c matrix.c && ./kmc-serial 32767 2 8 1024 0
+ * @file kmc-serial.c
+ * @brief K-means clustering serial implementation
+ * @details This program implements K-means clustering serial algorithm.
+ * The program reads data points from a CSV file and performs K-means clustering.
+ * The program outputs the cluster id of each data point to a CSV file.
+ * The program also outputs the time taken for the clustering.
+ * The program takes two command line arguments: the input file and the number of clusters.
+ * The input file should be a CSV file with each row representing a data point.
+ * The program uses the Euclidean distance to calculate the distance between data points and centroids.
  * 
+ * @date 2024-04-30
+ * 
+ * @authors
+ * Carl R.
+ * Brian D.
+ * Anna H.
+ * 
+ * To compile this file run the following command:
+ * gcc -lm -o kmc-serial kmc-serial.c matrix.c
+ * 
+ * To run the compiled file run the following command:
+ * ./kmc-serial <input_file> <k>
+ * ./kmc-serial <n> <d> <k> <grid_size> <seed>
 */
 
 #include <math.h>

@@ -1,5 +1,29 @@
-/** K-means cuda
- * to run: nvcc -arch=sm_86 -O3 --compiler-options -march=native kmc-cuda.cu -o kmc-cuda -lm && ./kmc-cuda
+/**
+ * @file kmc-cuda.cu
+ * @brief K-means clustering using CUDA
+ * @details This program implements K-means clustering using CUDA.
+ * The program reads data points from a CSV file and performs K-means clustering on the GPU.
+ * The program outputs the cluster id of each data point to a CSV file.
+ * The program also outputs the time taken for the clustering.
+ * The program takes two command line arguments: the input file and the number of clusters.
+ * The input file should be a CSV file with each row representing a data point.
+ * The program uses the Euclidean distance to calculate the distance between data points and centroids.
+ * 
+ * @date 2024-04-30
+ * 
+ * @authors
+ * Carl R.
+ * Brian D.
+ * Anna H.
+ * 
+ * To run this file you must be on a machine with a CUDA compatible GPU.
+ * 
+ * To compile this file run the following command:
+ * nvcc -arch=sm_86 -O3 --compiler-options -march=native kmc-cuda.cu -o kmc-cuda -lm
+ * 
+ * To run the compiled file run the following command:
+ * ./kmc-cuda <input_file> <k>
+ * ./kmc-cuda <n> <d> <k>
 */
 
 #include "matrix.hpp"
@@ -11,6 +35,30 @@
 
 #include <cuda_runtime.h>
 
+/**
+ * Macro for checking CUDA errors following a CUDA launch or API call.
+ */
+#define CHECK(call)                                                       \
+{                                                                         \
+   const cudaError_t error = call;                                        \
+   if (error != cudaSuccess)                                              \
+   {                                                                      \
+      printf("Error: %s:%d, ", __FILE__, __LINE__);                       \
+      printf("code: %d, reason: %s\n", error, cudaGetErrorString(error)); \
+      exit(1);                                                            \
+   }                                                                      \
+}
+
+/**
+ * CUDA kernel to assign clusters to data points.
+ * @param data_points The data points.
+ * @param centroids The centroids.
+ * @param cluster_id The cluster id of each data point.
+ * @param n The number of data points.
+ * @param d The number of dimensions.
+ * @param k The number of clusters.
+ * @param changed Flag to indicate if the cluster assignment has changed.
+*/
 __global__ void assign_clusters(double *data_points, double *centroids, int *cluster_id, int n, int d, int k, int *changed) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < n) {
@@ -33,6 +81,16 @@ __global__ void assign_clusters(double *data_points, double *centroids, int *clu
 	}
 }
 
+/**
+ * CUDA kernel to recalculate centroids.
+ * @param data_points The data points.
+ * @param centroids The centroids.
+ * @param cluster_id The cluster id of each data point.
+ * @param n The number of data points.
+ * @param d The number of dimensions.
+ * @param k The number of clusters.
+ * @param changed Flag to indicate if the cluster assignment has changed.
+*/
 __global__ void recalculate_centroids(double *data_points, double *centroids, int *cluster_id, int n, int d, int k, int *changed) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i < k) {
@@ -60,6 +118,18 @@ __global__ void recalculate_centroids(double *data_points, double *centroids, in
 	}
 }
 
+/**
+ * Parse command line arguments.
+ * @param argn The number of command line arguments.
+ * @param argv The command line arguments.
+ * @param n The number of data points.
+ * @param d The number of dimensions.
+ * @param k The number of clusters.
+ * @param data_points The data points.
+ * @details If the number of command line arguments is 4, the function generates random data points.
+ * If the number of command line arguments is 3, the function reads data points from a CSV file.
+ * If the number of command line arguments is not 3 or 4, the function prints an error message and exits.
+*/
 void parse_cmd_line(int argn, char** argv, int &n, int &d, int &k, Matrix<double> &data_points) {
 	if (argn == 4) {
 		n = atoi(argv[1]);
@@ -79,12 +149,18 @@ void parse_cmd_line(int argn, char** argv, int &n, int &d, int &k, Matrix<double
 	}
 }
 
+/**
+ * Main function.
+ * @param argn The number of command line arguments.
+ * @param argv The command line arguments.
+ * @return 0 if the program runs successfully.
+*/
 int main(int argn, char **argv) {
 
 	Matrix<double> data_points;
-	int n = data_points.rows;
-	int d = data_points.cols;
-	int k = 8;
+	int n;
+	int d;
+	int k;
 
 	parse_cmd_line(argn, argv, n, d, k, data_points);
 
@@ -113,13 +189,13 @@ int main(int argn, char **argv) {
 	// moved from inside loop
 	double *d_data_points, *d_centroids;
 	int *d_cluster_id, *d_changed;
-	cudaMalloc(&d_data_points, n * d * sizeof(double));
-	cudaMalloc(&d_centroids, k * d * sizeof(double));
-	cudaMalloc(&d_cluster_id, n * sizeof(int));
-	cudaMalloc(&d_changed, sizeof(int));
-	cudaMemcpy(d_data_points, data_points.data, n * d * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_centroids, centroids.data, k * d * sizeof(double), cudaMemcpyHostToDevice);
-	cudaMemcpy(d_cluster_id, cluster_id, n * sizeof(int), cudaMemcpyHostToDevice);
+	CHECK( cudaMalloc(&d_data_points, n * d * sizeof(double)) );
+	CHECK( cudaMalloc(&d_centroids, k * d * sizeof(double)) );
+	CHECK( cudaMalloc(&d_cluster_id, n * sizeof(int)) );
+	CHECK( cudaMalloc(&d_changed, sizeof(int)) );
+	CHECK( cudaMemcpy(d_data_points, data_points.data, n * d * sizeof(double), cudaMemcpyHostToDevice) );
+	CHECK( cudaMemcpy(d_centroids, centroids.data, k * d * sizeof(double), cudaMemcpyHostToDevice) );
+	CHECK( cudaMemcpy(d_cluster_id, cluster_id, n * sizeof(int), cudaMemcpyHostToDevice) );
 
 	// start time
 	clock_t start = clock();
@@ -145,10 +221,10 @@ int main(int argn, char **argv) {
 		// 	}
 		// }
 
-		cudaMemcpy(d_changed, &changed, sizeof(int), cudaMemcpyHostToDevice);
+		CHECK( cudaMemcpy(d_changed, &changed, sizeof(int), cudaMemcpyHostToDevice) );
 		assign_clusters<<<(n + 255) / 256, 256>>>(d_data_points, d_centroids, d_cluster_id, n, d, k, d_changed);
-		cudaDeviceSynchronize();
-		cudaMemcpy(&changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
+		CHECK( cudaDeviceSynchronize() );
+		CHECK( cudaMemcpy(&changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost) );
 		//cudaMemcpy(cluster_id, d_cluster_id, n * sizeof(int), cudaMemcpyDeviceToHost);
 
 		//getchar();
@@ -180,11 +256,11 @@ int main(int argn, char **argv) {
 		// 	}
 		// }
 
-		cudaMemcpy(d_changed, &changed, sizeof(int), cudaMemcpyHostToDevice);
+		CHECK( cudaMemcpy(d_changed, &changed, sizeof(int), cudaMemcpyHostToDevice) );
 		recalculate_centroids<<<(k + 255) / 256, 256>>>(d_data_points, d_centroids, d_cluster_id, n, d, k, d_changed);
-		cudaDeviceSynchronize();
+		CHECK( cudaDeviceSynchronize() );
 		//cudaMemcpy(centroids.data, d_centroids, k * d * sizeof(double), cudaMemcpyDeviceToHost);
-		cudaMemcpy(&changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
+		CHECK( cudaMemcpy(&changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost) );
 
 		if (changed == 0) {
 			break;
@@ -197,13 +273,13 @@ int main(int argn, char **argv) {
 	std::cout << "time: " << time << std::endl;
 
 	// moved from inside loop
-	cudaMemcpy(cluster_id, d_cluster_id, n * sizeof(int), cudaMemcpyDeviceToHost);
-	cudaMemcpy(centroids.data, d_centroids, k * d * sizeof(double), cudaMemcpyDeviceToHost);
+	CHECK( cudaMemcpy(cluster_id, d_cluster_id, n * sizeof(int), cudaMemcpyDeviceToHost) );
+	CHECK( cudaMemcpy(centroids.data, d_centroids, k * d * sizeof(double), cudaMemcpyDeviceToHost) );
 
-	cudaFree(d_data_points);
-	cudaFree(d_centroids);
-	cudaFree(d_cluster_id);
-	cudaFree(d_changed);
+	CHECK( cudaFree(d_data_points) );
+	CHECK( cudaFree(d_centroids) );
+	CHECK( cudaFree(d_cluster_id) );
+	CHECK( cudaFree(d_changed) );
 
 	// print result
 	std::cout << "iter: " << iter << std::endl;
