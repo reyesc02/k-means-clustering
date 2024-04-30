@@ -1,13 +1,29 @@
 /**
- * Parallel implementation of the K-Means Clustering algorithm with OpenMP
- * to compile and run this file, run the following command:
- *    gcc-13 $(mpicc -showme:compile) $(mpicc -showme:link) -Wall -O3 -march=native -fopenmp kmc-openmp.c matrix.c -o kmc-openmp -lm
- *     mpirun -np 4 ./kmc-openmp 32767 2 8 1024 0
- *      mpirun -np 4 ./kmc-openmp data/housing.csv 8
- *
- * on linux:
- *    gcc -o kmc-openmp kmc-openmp.c -fopenmp -lm && ./kmc-openmp 128 2 1000 4
- */
+ * @file kmc-openmp.c
+ * @brief K-means clustering using OpenMP
+ * @details This program implements K-means clustering using OpenMP.
+ * The program reads data points from a CSV file and performs K-means clustering with threads.
+ * The program outputs the cluster id of each data point to a CSV file.
+ * The program also outputs the time taken for the clustering.
+ * The program takes two command line arguments: the input file and the number of clusters.
+ * The input file should be a CSV file with each row representing a data point.
+ * The program uses the Euclidean distance to calculate the distance between data points and centroids.
+ * 
+ * @date 2024-04-30
+ * 
+ * @authors
+ * Carl R.
+ * Brian D.
+ * Anna H.
+ * 
+ * To compile this file run the following command:
+ * gcc-13 $(mpicc -showme:compile) $(mpicc -showme:link) -Wall -O3 -march=native -fopenmp kmc-openmp.c matrix.c -o kmc-openmp -lm
+ * 
+ * To run the compiled file run the following command:
+ * mpirun -np 4 ./kmc-openmp <input_file> <k>
+ * mpirun -np 4 ./kmc-openmp <n> <d> <k> <grid_size> <seed>
+*/
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdlib.h>
