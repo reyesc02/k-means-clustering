@@ -60,14 +60,37 @@ __global__ void recalculate_centroids(double *data_points, double *centroids, in
 	}
 }
 
-int main() {
-	//Matrix<double> data_points = Matrix<double>::from_csv("data/housing_cuda.csv");
-	Matrix<double> data_points = Matrix<double>(32767, 2);
-	data_points.random();
+void parse_cmd_line(int argn, char** argv, int &n, int &d, int &k, Matrix<double> &data_points) {
+	if (argn == 4) {
+		n = atoi(argv[1]);
+		d = atoi(argv[2]);
+		k = atoi(argv[3]);
+		data_points = Matrix<double>(n, d);
+		data_points.random();
+	} else if (argn == 3) {
+		data_points = Matrix<double>::from_csv(argv[1]);
+		n = data_points.rows;
+		d = data_points.cols;
+		k = atoi(argv[2]);
+	} else {
+		printf("Usage: %s <n> <d> <k>\n", argv[0]);
+		printf("Usage: %s <input_file> <k>\n", argv[0]);
+		exit(1);
+	}
+}
 
- 	int n = data_points.rows;
+int main(int argn, char **argv) {
+
+	Matrix<double> data_points;
+	int n = data_points.rows;
 	int d = data_points.cols;
 	int k = 8;
+
+	parse_cmd_line(argn, argv, n, d, k, data_points);
+
+	//Matrix<double> data_points = Matrix<double>::from_csv("data/housing_cuda.csv");
+	// Matrix<double> data_points = Matrix<double>(32767, 2);
+	// data_points.random();
 
 	printf("n: %d, d: %d, k: %d\n", n, d, k);
 
@@ -98,6 +121,9 @@ int main() {
 	cudaMemcpy(d_centroids, centroids.data, k * d * sizeof(double), cudaMemcpyHostToDevice);
 	cudaMemcpy(d_cluster_id, cluster_id, n * sizeof(int), cudaMemcpyHostToDevice);
 
+	// start time
+	clock_t start = clock();
+
 	for (iter = 0; iter < max_iter; iter++) {
 		int changed = 0;
 		// for (int i = 0; i < n; i++) {
@@ -123,7 +149,7 @@ int main() {
 		assign_clusters<<<(n + 255) / 256, 256>>>(d_data_points, d_centroids, d_cluster_id, n, d, k, d_changed);
 		cudaDeviceSynchronize();
 		cudaMemcpy(&changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
-		cudaMemcpy(cluster_id, d_cluster_id, n * sizeof(int), cudaMemcpyDeviceToHost);
+		//cudaMemcpy(cluster_id, d_cluster_id, n * sizeof(int), cudaMemcpyDeviceToHost);
 
 		//getchar();
 		// print cluster_id
@@ -157,7 +183,7 @@ int main() {
 		cudaMemcpy(d_changed, &changed, sizeof(int), cudaMemcpyHostToDevice);
 		recalculate_centroids<<<(k + 255) / 256, 256>>>(d_data_points, d_centroids, d_cluster_id, n, d, k, d_changed);
 		cudaDeviceSynchronize();
-		cudaMemcpy(centroids.data, d_centroids, k * d * sizeof(double), cudaMemcpyDeviceToHost);
+		//cudaMemcpy(centroids.data, d_centroids, k * d * sizeof(double), cudaMemcpyDeviceToHost);
 		cudaMemcpy(&changed, d_changed, sizeof(int), cudaMemcpyDeviceToHost);
 
 		if (changed == 0) {
@@ -165,7 +191,14 @@ int main() {
 		}
 	}
 
+	// end time
+	clock_t end = clock();
+	double time = (double)(end - start) / CLOCKS_PER_SEC;
+	std::cout << "time: " << time << std::endl;
+
 	// moved from inside loop
+	cudaMemcpy(cluster_id, d_cluster_id, n * sizeof(int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(centroids.data, d_centroids, k * d * sizeof(double), cudaMemcpyDeviceToHost);
 
 	cudaFree(d_data_points);
 	cudaFree(d_centroids);
@@ -176,17 +209,16 @@ int main() {
 	std::cout << "iter: " << iter << std::endl;
 
 	// output data points, cluster id to csv to file
-	FILE *fp = fopen("output/housing_cuda_result.csv", "w");
-	for (int i = 0; i < n; i++) {
-		for (int j = 0; j < d; j++) {
-			fprintf(fp, "%lf", data_points(i, j));
-			if (j < d - 1) {
-				fprintf(fp, ",");
-			}
-		}
-		fprintf(fp, ",%d\n", cluster_id[i]);
-	}
-
+	// FILE *fp = fopen("output/housing_cuda_result.csv", "w");
+	// for (int i = 0; i < n; i++) {
+	// 	for (int j = 0; j < d; j++) {
+	// 		fprintf(fp, "%lf", data_points(i, j));
+	// 		if (j < d - 1) {
+	// 			fprintf(fp, ",");
+	// 		}
+	// 	}
+	// 	fprintf(fp, ",%d\n", cluster_id[i]);
+	// }
 
 	return 0;
 }
